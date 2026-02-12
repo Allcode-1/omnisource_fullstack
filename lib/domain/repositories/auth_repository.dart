@@ -1,13 +1,14 @@
+import '../entities/user.dart';
+
 abstract class AuthRepository {
-  // login by email and password
-  Future<void> login(String email, String password);
+  Future<User> login(String email, String password);
+  Future<User> register(String email, String password, String username);
 
-  // new user regist
-  Future<void> register(String email, String password, String username);
+  Future<List<String>> getAvailableTags();
+  Future<void> completeOnboarding(List<String> tags);
 
-  // Вlogout (token deleting)
+  Future<void> forgotPassword(String email);
+  Future<void> resetPassword(String token, String newPassword);
   Future<void> logout();
-
-  // check if user authenticated (token exists)
   Future<bool> checkAuth();
 }

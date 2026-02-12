@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../models/user_model.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final Dio _dio;
@@ -9,26 +11,65 @@ class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl(this._dio);
 
   @override
-  Future<void> login(String email, String password) async {
-    // fastapi expects formData for work
+  Future<User> login(String email, String password) async {
     final response = await _dio.post(
-      '/auth/token',
-      data: {
-        'username': email, // field gotta be named username for oauth2 standarts
-        'password': password,
-      },
+      '/auth/login',
+      data: {'username': email, 'password': password},
       options: Options(contentType: Headers.formUrlEncodedContentType),
     );
 
     final token = response.data['access_token'];
     await _storage.write(key: 'jwt_token', value: token);
+
+    return UserModel.fromJson(response.data['user']);
   }
 
   @override
-  Future<void> register(String email, String password, String username) async {
-    await _dio.post(
+  Future<User> register(String email, String password, String username) async {
+    final response = await _dio.post(
       '/auth/register',
       data: {'email': email, 'password': password, 'username': username},
+    );
+
+    return UserModel.fromJson(response.data['user']);
+  }
+
+  @override
+  Future<void> completeOnboarding(List<String> tags) async {
+    final token = await _storage.read(key: 'jwt_token');
+
+    await _dio.post(
+      '/user/complete-onboarding',
+      data: {'interests': tags},
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+  }
+
+  @override
+  Future<List<String>> getAvailableTags() async {
+    try {
+      final response = await _dio.get('/user/tags');
+
+      if (response.statusCode == 200) {
+        return List<String>.from(response.data);
+      }
+      return [];
+    } catch (e) {
+      print("Error while loading tags: $e");
+      return [];
+    }
+  }
+
+  @override
+  Future<void> forgotPassword(String email) async {
+    await _dio.post('/auth/forgot-password', data: {'email': email});
+  }
+
+  @override
+  Future<void> resetPassword(String token, String newPassword) async {
+    await _dio.post(
+      '/auth/reset-password',
+      data: {'token': token, 'new_password': newPassword},
     );
   }
 

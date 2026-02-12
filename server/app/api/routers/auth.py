@@ -10,7 +10,20 @@ from app.core.email import send_reset_password_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-@router.post("/register", response_model=UserRead)
+
+@router.post("/login")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = await User.find_one(User.email == form_data.username)
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect email or password")
+    
+    return {
+        "access_token": create_access_token(user.id), 
+        "token_type": "bearer",
+        "user": UserRead.model_validate(user)
+    }
+
+@router.post("/register", response_model=dict)
 async def register(user_in: UserCreate):
     if await User.find_one(User.email == user_in.email):
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -19,18 +32,15 @@ async def register(user_in: UserCreate):
         username=user_in.username,
         email=user_in.email,
         hashed_password=get_password_hash(user_in.password),
-        interests=user_in.interests
+        interests=user_in.interests,
+        is_onboarding_complited=False
     )
     await new_user.insert()
-    return new_user
-
-@router.post("/login")
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = await User.find_one(User.email == form_data.username)
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
-    
-    return {"access_token": create_access_token(user.id), "token_type": "bearer"}
+    return {
+        "access_token": create_access_token(new_user.id),
+        "token_type": "bearer",
+        "user": UserRead.model_validate(new_user)
+    }
 
 @router.post("/forgot-password")
 async def forgot_password(data: ForgotPassword, background_tasks: BackgroundTasks):

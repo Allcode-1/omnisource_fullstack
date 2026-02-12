@@ -7,6 +7,7 @@ class User(Document):
     email: Annotated[EmailStr, Indexed(unique=True)]
     hashed_password: str
     interests: List[str] = []
+    is_onboarding_completed: bool = False
 
     class Settings:
         name = "users"

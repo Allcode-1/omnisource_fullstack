@@ -7,6 +7,7 @@ class UserBase(BaseModel):
     username: str
     email: EmailStr
     interests: List[str] = []
+    is_onboarding_completed: bool = False
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
@@ -50,6 +51,9 @@ class UserRead(UserBase):
         from_attributes=True,
         populate_by_name=True 
     )
+
+class OnboardingComplete(BaseModel):
+    interests: List[str]
 
 class ForgotPassword(BaseModel):
     email: EmailStr
