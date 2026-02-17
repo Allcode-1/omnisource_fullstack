@@ -9,8 +9,6 @@ from app.schemas.content import UnifiedContent
 from app.core.tags import get_tag_queries
 from app.core.redis import redis_client 
 
-
-
 class ContentService:
     def __init__(self):
         self.tmdb = TMDBClient()
@@ -19,91 +17,163 @@ class ContentService:
         self.mapper = ContentMapper()
         self.sanitizer = ContentSanitizer()
 
-    async def get_unified_search(self, query: str) -> List[UnifiedContent]:
-        cache_key = f"search:{query.lower().strip()}"
+    async def get_unified_search(self, query: str, type: str = "all") -> List[UnifiedContent]:
+        cache_key = f"search:{type}:{query.lower().strip()}"
         cached = await redis_client.get_cache(cache_key)
         if cached:
             return [UnifiedContent(**item) for item in cached]
 
-        tasks = [
-            self.tmdb.search_movies(query), 
-            self.books.search_books(query), 
-            self.spotify.search_tracks(query)
-        ]
-        movies_raw, books_raw, tracks_raw = await asyncio.gather(*tasks, return_exceptions=True)
+        tasks = []
+        i_map = [] 
+
+        if type in ["all", "movie"]:
+            tasks.append(self.tmdb.search_movies(query))
+            i_map.append("movie")
+        
+        if type in ["all", "book"]:
+            tasks.append(self.books.search_books(query))
+            i_map.append("book")
+            
+        if type in ["all", "music"]:
+            tasks.append(self.spotify.search_tracks(query))
+            i_map.append("music")
+
+        if not tasks:
+            return []
+
+        results_raw = await asyncio.gather(*tasks, return_exceptions=True)
         
         results = []
-        if isinstance(movies_raw, dict): 
-            results.extend([self.mapper.map_tmdb(m) for m in movies_raw.get("results", [])])
-        if isinstance(books_raw, dict): 
-            results.extend([self.mapper.map_google_books(b) for b in books_raw.get("items", [])])
-        if isinstance(tracks_raw, dict): 
-            results.extend([self.mapper.map_spotify(t) for t in tracks_raw.get("tracks", {}).get("items", [])])
+        for idx, raw in enumerate(results_raw):
+            if isinstance(raw, Exception) or not isinstance(raw, dict): 
+                continue
+            
+            current_type = i_map[idx]
+            
+            if current_type == "movie":
+                results.extend([self.mapper.map_tmdb(m) for m in raw.get("results", [])])
+            elif current_type == "book":
+                results.extend([self.mapper.map_google_books(b) for b in raw.get("items", [])])
+            elif current_type == "music":
+                results.extend([self.mapper.map_spotify(t) for t in raw.get("tracks", {}).get("items", [])])
         
-        sorted_results = sorted(results, key=lambda x: x.rating or 0, reverse=True)
+        valid_results = [r for r in results if self.sanitizer.is_valid(r)]
+        sorted_results = sorted(valid_results, key=lambda x: x.rating or 0, reverse=True)
         
         await redis_client.set_cache(cache_key, [r.model_dump() for r in sorted_results], expire=600)
         return sorted_results
 
-
-
-    async def get_home_data(self) -> Dict[str, List[UnifiedContent]]:
-        cache_key = "home_data_v1"
+    async def get_home_data(self, type: str = "all") -> Dict[str, List[UnifiedContent]]:
+        cache_key = f"home_data_v2_{type}"
         cached = await redis_client.get_cache(cache_key)
         if cached:
-            return cached
+            return {k: [UnifiedContent(**i) for i in v] for k, v in cached.items()}
 
         tasks = [
-            self.tmdb.get_popular_movies(), 
-            self.books.search_books("subject:fiction"), 
-            self.spotify.search_tracks("year:2026") 
+            self.tmdb.get_popular_movies(),
+            self.tmdb.get_top_rated_movies(),
+            self.tmdb.search_movies("Action"),
+            self.spotify.search_tracks("tag:new"),
+            self.spotify.search_tracks("genre:rock"),
+            self.spotify.search_tracks("genre:pop"),
+            self.books.search_books("subject:fiction"),
+            self.books.search_books("subject:thriller"),
+            self.books.search_books("subject:history")
         ]
-        m, b, t = await asyncio.gather(*tasks, return_exceptions=True)
-
-        def process_raw_data(raw, mapper_func, type_key):
-            if not isinstance(raw, dict): return []
-            if type_key == "movie": items = raw.get("results", [])
-            elif type_key == "book": items = raw.get("items", [])
-            else: items = raw.get("tracks", {}).get("items", [])
-
-            mapped = [mapper_func(i) for i in items]
-            cleaned = [i for i in mapped if self.sanitizer.is_valid(i)]
-            return self.sanitizer.get_unique(cleaned, limit=10)
         
+        raw_res = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        def wrap(data, mapper_func, type_key):
+            if type != "all" and type_key != type:
+                return []
+            if isinstance(data, Exception) or not isinstance(data, dict): return []
+            
+            if type_key == "movie": items = data.get("results", [])
+            elif type_key == "book": items = data.get("items", [])
+            else: items = data.get("tracks", {}).get("items", []) if isinstance(data.get("tracks"), dict) else []
+            
+            mapped = []
+            for i in items:
+                try:
+                    m = mapper_func(i)
+                    if self.sanitizer.is_valid(m): mapped.append(m)
+                except: continue
+            return mapped[:15]
+
         res = {
-            "trending_movies": process_raw_data(m, self.mapper.map_tmdb, "movie"),
-            "popular_books": process_raw_data(b, self.mapper.map_google_books, "book"),
-            "top_tracks": process_raw_data(t, self.mapper.map_spotify, "music")
+            "Trending Now": wrap(raw_res[0], self.mapper.map_tmdb, "movie") + 
+                            wrap(raw_res[3], self.mapper.map_spotify, "music") + 
+                            wrap(raw_res[6], self.mapper.map_google_books, "book"),
+            "Editor's Choice": wrap(raw_res[1], self.mapper.map_tmdb, "movie") + 
+                               wrap(raw_res[4], self.mapper.map_spotify, "music") + 
+                               wrap(raw_res[7], self.mapper.map_google_books, "book"),
+            "New Releases": wrap(raw_res[3], self.mapper.map_spotify, "music") + 
+                            wrap(raw_res[0], self.mapper.map_tmdb, "movie"),
+            "Action & High Energy": wrap(raw_res[2], self.mapper.map_tmdb, "movie") + 
+                                    wrap(raw_res[5], self.mapper.map_spotify, "music"),
+            "Must Read Classics": wrap(raw_res[6], self.mapper.map_google_books, "book"),
+            "Discover Something New": wrap(raw_res[8], self.mapper.map_google_books, "book") + 
+                                      wrap(raw_res[1], self.mapper.map_tmdb, "movie") + 
+                                      wrap(raw_res[4], self.mapper.map_spotify, "music")
         }
 
-        serializable_res = {k: [i.model_dump() for i in v] for k, v in res.items()}
-        await redis_client.set_cache(cache_key, serializable_res, expire=1800)
-        return res
-
-
+        filtered_res = {k: v for k, v in res.items() if v}
+        serializable = {k: [i.model_dump() for i in v] for k, v in filtered_res.items()}
+        await redis_client.set_cache(cache_key, serializable, expire=1800)
+        return filtered_res
 
     async def get_discovery(self, tag: str) -> List[UnifiedContent]:
-        cache_key = f"discovery:{tag.lower()}"
-        cached = await redis_client.get_cache(cache_key)
-        if cached:
-            return [UnifiedContent(**item) for item in cached]
-
         queries = get_tag_queries(tag)
         tasks = [
             self.tmdb.search_movies(queries.tmdb_keyword),
             self.books.search_books(f"subject:{queries.google_books_subject}"),
             self.spotify.search_tracks(f"genre:{queries.spotify_genre}")
         ]
-        
-        m, b, t = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        all_results = []
-        if isinstance(m, dict): all_results.extend([self.mapper.map_tmdb(i) for i in m.get("results", [])])
-        if isinstance(b, dict): all_results.extend([self.mapper.map_google_books(i) for i in b.get("items", [])])
-        if isinstance(t, dict): all_results.extend([self.mapper.map_spotify(i) for i in t.get("tracks", {}).get("items", [])])
+        results_raw = await asyncio.gather(*tasks, return_exceptions=True)
+        results = []
+        for i, raw in enumerate(results_raw):
+            if isinstance(raw, Exception) or not isinstance(raw, dict): continue
+            if i == 0: results.extend([self.mapper.map_tmdb(item) for item in raw.get("results", [])])
+            elif i == 1: results.extend([self.mapper.map_google_books(item) for item in raw.get("items", [])])
+            elif i == 2: results.extend([self.mapper.map_spotify(item) for item in raw.get("tracks", {}).get("items", [])])
+        return self.sanitizer.get_unique([i for i in results if self.sanitizer.is_valid(i)], limit=30)
 
-        cleaned = [i for i in all_results if self.sanitizer.is_valid(i)]
-        unique_results = self.sanitizer.get_unique(cleaned, limit=30)
+    async def get_recommendations(self, type: str = "all") -> List[UnifiedContent]:
+        cache_key = f"recs_v2_{type}"
+        cached = await redis_client.get_cache(cache_key)
+        if cached:
+            return [UnifiedContent(**item) for item in cached]
 
-        await redis_client.set_cache(cache_key, [r.model_dump() for r in unique_results], expire=3600)
-        return unique_results
+        results = []
+        try:
+            if type == "movie":
+                raw = await self.tmdb.get_top_rated_movies()
+                results = [self.mapper.map_tmdb(m) for m in (raw or {}).get("results", [])]
+            elif type == "music":
+                raw = await self.spotify.search_tracks("tag:new")
+                results = [self.mapper.map_spotify(t) for t in (raw or {}).get("tracks", {}).get("items", [])]
+            elif type == "book":
+                raw = await self.books.search_books("subject:recommended")
+                results = [self.mapper.map_google_books(b) for b in (raw or {}).get("items", [])]
+            else:
+                m_raw, s_raw, b_raw = await asyncio.gather(
+                    self.tmdb.get_top_rated_movies(),
+                    self.spotify.search_tracks("tag:new"),
+                    self.books.search_books("subject:fiction"),
+                    return_exceptions=True
+                )
+                if not isinstance(m_raw, Exception) and m_raw:
+                    results.extend([self.mapper.map_tmdb(m) for m in m_raw.get("results", [])[:5]])
+                if not isinstance(s_raw, Exception) and s_raw:
+                    results.extend([self.mapper.map_spotify(t) for t in s_raw.get("tracks", {}).get("items", [])[:5]])
+                if not isinstance(b_raw, Exception) and b_raw:
+                    results.extend([self.mapper.map_google_books(b) for b in b_raw.get("items", [])[:5]])
+
+        except Exception as e:
+            print(f"Critical service error: {e}")
+            return []
+
+        valid_results = [r for r in results if self.sanitizer.is_valid(r)]
+        if valid_results:
+            await redis_client.set_cache(cache_key, [r.model_dump() for r in valid_results], expire=600)
+        return valid_results

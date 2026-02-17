@@ -6,6 +6,7 @@ class UserModel extends User {
     required super.email,
     required super.username,
     required super.isOnboardingCompleted,
+    required super.interests,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -13,7 +14,8 @@ class UserModel extends User {
       id: json['_id'] ?? '',
       email: json['email'] ?? '',
       username: json['username'] ?? '',
-      isOnboardingCompleted: json['isOnboardingCompleted'] ?? false,
+      isOnboardingCompleted: json['is_onboarding_completed'] ?? false,
+      interests: List<String>.from(json['interests'] ?? []),
     );
   }
 }

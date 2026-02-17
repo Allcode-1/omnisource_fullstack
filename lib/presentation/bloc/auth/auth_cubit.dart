@@ -11,7 +11,12 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthLoading());
     try {
       final user = await authRepository.login(email, password);
-      emit(AuthAuthenticated(needsOnboarding: !user.isOnboardingCompleted));
+      emit(
+        AuthAuthenticated(
+          user: user,
+          needsOnboarding: !user.isOnboardingCompleted,
+        ),
+      );
     } catch (e) {
       emit(AuthError("Login failed. Check your credentials."));
     }
@@ -21,7 +26,12 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthLoading());
     try {
       final user = await authRepository.register(email, password, username);
-      emit(AuthAuthenticated(needsOnboarding: !user.isOnboardingCompleted));
+      emit(
+        AuthAuthenticated(
+          user: user,
+          needsOnboarding: !user.isOnboardingCompleted,
+        ),
+      );
     } catch (e) {
       emit(AuthError("Registration failed."));
     }
@@ -31,12 +41,30 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthLoading());
     try {
       await authRepository.completeOnboarding(tags);
-      print("Onboarding success!");
-      emit(AuthAuthenticated(needsOnboarding: false));
+      final user = await authRepository.getCurrentUser();
+      if (user != null) {
+        emit(AuthAuthenticated(user: user, needsOnboarding: false));
+      }
     } catch (e) {
-      print("onboarding error: $e");
       emit(AuthError("Failed to save your preferences."));
-      emit(AuthAuthenticated(needsOnboarding: true));
+    }
+  }
+
+  Future<void> checkAuth() async {
+    try {
+      final user = await authRepository.getCurrentUser();
+      if (user != null) {
+        emit(
+          AuthAuthenticated(
+            user: user,
+            needsOnboarding: !user.isOnboardingCompleted,
+          ),
+        );
+      } else {
+        emit(AuthInitial());
+      }
+    } catch (_) {
+      emit(AuthInitial());
     }
   }
 
@@ -60,7 +88,7 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  void logout() async {
+  Future<void> logout() async {
     await authRepository.logout();
     emit(AuthInitial());
   }

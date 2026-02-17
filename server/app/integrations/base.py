@@ -8,7 +8,7 @@ class BaseIntegration:
     async def _get(self, endpoint: str, params: Optional[dict] = None, headers: Optional[dict] = None) -> Any:
         async with httpx.AsyncClient() as client:
             url = f"{self.base_url}{endpoint}"
-            response = await client.get(url, params=params, headers=headers, timeout=10.0)
+            response = await client.get(url, params=params, headers=headers, timeout=5.0)
             if response.status_code != 200:
                 print(f"API Error {url}: {response.status_code} - {response.text}")
                 return None

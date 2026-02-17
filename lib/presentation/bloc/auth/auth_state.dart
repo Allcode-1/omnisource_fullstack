@@ -1,3 +1,5 @@
+import '../../../domain/entities/user.dart';
+
 abstract class AuthState {}
 
 class AuthInitial extends AuthState {} // user just launched app
@@ -5,8 +7,9 @@ class AuthInitial extends AuthState {} // user just launched app
 class AuthLoading extends AuthState {} // wait for backend response
 
 class AuthAuthenticated extends AuthState {
+  final User user;
   final bool needsOnboarding;
-  AuthAuthenticated({required this.needsOnboarding});
+  AuthAuthenticated({required this.user, required this.needsOnboarding});
 } // loginned correctly
 
 class AuthError extends AuthState {

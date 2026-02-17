@@ -1,5 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:omnisource/presentation/screens/discover/discover_screen.dart';
+import 'package:omnisource/presentation/screens/home/home_screen.dart';
+import 'package:omnisource/presentation/screens/library/library_page.dart';
+import 'package:omnisource/presentation/screens/search/search_screen.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -12,18 +16,10 @@ class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
-    const Center(
-      child: Text("Home Feed", style: TextStyle(color: Colors.white)),
-    ),
-    const Center(
-      child: Text("Deep Discovery", style: TextStyle(color: Colors.white)),
-    ),
-    const Center(
-      child: Text("Library", style: TextStyle(color: Colors.white)),
-    ),
-    const Center(
-      child: Text("Search", style: TextStyle(color: Colors.white)),
-    ),
+    const HomeScreen(),
+    const DiscoverScreen(),
+    const LibraryScreen(),
+    const SearchScreen(),
   ];
 
   @override

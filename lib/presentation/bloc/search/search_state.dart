@@ -1,17 +1,29 @@
 import '../../../domain/entities/unified_content.dart';
 
-abstract class SearchState {}
-
-class SearchInitial extends SearchState {}
-
-class SearchLoading extends SearchState {}
-
-class SearchLoaded extends SearchState {
+class SearchState {
   final List<UnifiedContent> results;
-  SearchLoaded(this.results);
-}
+  final bool isLoading;
+  final String activeType; // 'all', 'movie', 'music', 'book'
+  final String errorMessage;
 
-class SearchError extends SearchState {
-  final String message;
-  SearchError(this.message);
+  SearchState({
+    this.results = const [],
+    this.isLoading = false,
+    this.activeType = 'all',
+    this.errorMessage = '',
+  });
+
+  SearchState copyWith({
+    List<UnifiedContent>? results,
+    bool? isLoading,
+    String? activeType,
+    String? errorMessage,
+  }) {
+    return SearchState(
+      results: results ?? this.results,
+      isLoading: isLoading ?? this.isLoading,
+      activeType: activeType ?? this.activeType,
+      errorMessage: errorMessage ?? this.errorMessage,
+    );
+  }
 }

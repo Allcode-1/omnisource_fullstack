@@ -10,11 +10,15 @@ import 'data/repositories_impl/auth_repository_impl.dart';
 import 'data/repositories_impl/content_repository_impl.dart';
 import 'data/repositories_impl/playlist_repository_impl.dart';
 
+import 'domain/repositories/user_repository.dart';
+import 'data/repositories_impl/user_repository_impl.dart';
+
 import 'package:omnisource/domain/repositories/auth_repository.dart';
 
 // Bloc
 import 'presentation/bloc/auth/auth_cubit.dart';
 import 'presentation/bloc/auth/auth_state.dart';
+import 'presentation/bloc/home/home_cubit.dart';
 import 'presentation/bloc/search/search_cubit.dart';
 import 'presentation/bloc/library/library_cubit.dart';
 
@@ -36,6 +40,9 @@ void main() {
         RepositoryProvider<AuthRepository>(
           create: (context) => AuthRepositoryImpl(apiClient.dio),
         ),
+        RepositoryProvider<UserRepository>(
+          create: (context) => UserRepositoryImpl(apiClient),
+        ),
         RepositoryProvider<ContentRepositoryImpl>(
           create: (context) => ContentRepositoryImpl(apiClient.dio),
         ),
@@ -47,7 +54,12 @@ void main() {
       child: MultiBlocProvider(
         providers: [
           BlocProvider(
-            create: (context) => AuthCubit(context.read<AuthRepository>()),
+            create: (context) =>
+                AuthCubit(context.read<AuthRepository>())..checkAuth(),
+          ),
+          BlocProvider(
+            create: (context) =>
+                HomeCubit(context.read<ContentRepositoryImpl>())..loadContent(),
           ),
           BlocProvider(
             create: (context) =>

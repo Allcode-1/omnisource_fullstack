@@ -30,6 +30,10 @@ class AuthRepositoryImpl implements AuthRepository {
       '/auth/register',
       data: {'email': email, 'password': password, 'username': username},
     );
+    final token = response.data['access_token'];
+    if (token != null) {
+      await _storage.write(key: 'jwt_token', value: token);
+    }
 
     return UserModel.fromJson(response.data['user']);
   }
@@ -43,6 +47,25 @@ class AuthRepositoryImpl implements AuthRepository {
       data: {'interests': tags},
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
+  }
+
+  @override
+  Future<User?> getCurrentUser() async {
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      if (token == null) return null;
+      final response = await _dio.get(
+        '/user/me',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (response.statusCode == 200) {
+        return UserModel.fromJson(response.data);
+      }
+      return null;
+    } catch (e) {
+      print("Error with getting user: $e");
+      return null;
+    }
   }
 
   @override
