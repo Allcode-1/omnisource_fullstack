@@ -33,16 +33,13 @@ class HomeCubit extends Cubit<HomeState> {
   }
 
   Future<void> loadContent() async {
-    // Не спамим загрузкой, если уже грузим
     if (state.isLoading == false && state.trending.isEmpty) {
       emit(state.copyWith(isLoading: true));
     }
 
     try {
       final type = _getCategoryType();
-      print("[HOME_CUBIT] Начинаю загрузку для типа: $type");
 
-      // Параллельно запускаем все запросы
       final results = await Future.wait([
         repository.getTrending(type: type),
         repository.getRecommendations(type: type),
@@ -53,12 +50,6 @@ class HomeCubit extends Cubit<HomeState> {
       final recsList = results[1] as List<UnifiedContent>;
       final homeDataMap = results[2] as Map<String, List<UnifiedContent>>;
 
-      print("[HOME_CUBIT] Данные получены успешно!");
-      print("[HOME_CUBIT] Трендов: ${trendingList.length}");
-      print("[HOME_CUBIT] Секций в HomeMap: ${homeDataMap.keys.toList()}");
-
-      // Пытаемся вытащить тренды из HomeMap (бэкенд присылает их там как 'Trending Now')
-      // Если там пусто, берем из отдельного списка трендов
       final finalTrending =
           homeDataMap['Trending Now'] ??
           homeDataMap['Trending'] ??
@@ -73,10 +64,7 @@ class HomeCubit extends Cubit<HomeState> {
           error: '',
         ),
       );
-    } catch (e, stack) {
-      print("[HOME_CUBIT] КРИТИЧЕСКАЯ ОШИБКА: $e");
-      print("[HOME_CUBIT] STACKTRACE: $stack");
-
+    } catch (e) {
       emit(
         state.copyWith(
           isLoading: false,

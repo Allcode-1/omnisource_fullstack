@@ -66,8 +66,10 @@ void main() {
                 SearchCubit(context.read<ContentRepositoryImpl>()),
           ),
           BlocProvider(
-            create: (context) =>
-                LibraryCubit(context.read<ContentRepositoryImpl>()),
+            create: (context) => LibraryCubit(
+              contentRepository: context.read<ContentRepositoryImpl>(),
+              playlistRepository: context.read<PlaylistRepositoryImpl>(),
+            ),
           ),
         ],
         child: const OmniSourceApp(),

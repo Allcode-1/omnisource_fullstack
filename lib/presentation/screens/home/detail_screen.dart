@@ -12,7 +12,6 @@ class DetailScreen extends StatelessWidget {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // 1. Фоновое размытое изображение
           Container(
             height: MediaQuery.of(context).size.height * 0.6,
             decoration: BoxDecoration(
@@ -42,9 +41,7 @@ class DetailScreen extends StatelessWidget {
                       color: Colors.white,
                       size: 28,
                     ),
-                    onPressed: () {
-                      /* Вызов toggleLike из Cubit */
-                    },
+                    onPressed: () {},
                   ),
                 ],
               ),

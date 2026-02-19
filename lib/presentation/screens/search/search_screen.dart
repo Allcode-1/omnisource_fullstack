@@ -127,8 +127,6 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  // ===== APP BAR =====
-
   Widget _buildAppBar(BuildContext context) {
     return BlocBuilder<AuthCubit, AuthState>(
       builder: (context, authState) {
@@ -172,8 +170,6 @@ class _SearchScreenState extends State<SearchScreen> {
       },
     );
   }
-
-  // ===== SEARCH BAR =====
 
   Widget _buildSearchBar(BuildContext context) {
     return AnimatedContainer(
@@ -234,8 +230,6 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
     );
   }
-
-  // ===== FILTERS (без All) =====
 
   Widget _buildFilters(BuildContext context, String activeType) {
     final filters = [

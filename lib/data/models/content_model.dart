@@ -14,24 +14,40 @@ class ContentModel extends UnifiedContent {
     super.releaseDate,
   });
 
-  factory ContentModel.fromJson(Map<String, dynamic> json) {
+  factory ContentModel.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return ContentModel.empty();
+
+    try {
+      return ContentModel(
+        id: (json['_id'] ?? json['id'] ?? '').toString(),
+        externalId: (json['ext_id'] ?? json['external_id'] ?? '').toString(),
+        type: json['type']?.toString() ?? 'unknown',
+        title: json['title']?.toString() ?? 'No Title',
+        subtitle: json['subtitle']?.toString(),
+        description: json['description']?.toString(),
+        imageUrl: json['image_url']?.toString(),
+        rating: json['rating'] != null
+            ? double.tryParse(json['rating'].toString()) ?? 0.0
+            : 0.0,
+        genres: (json['genres'] is List)
+            ? List<String>.from(
+                (json['genres'] as List).map((g) => g.toString()),
+              )
+            : const [],
+        releaseDate: json['release_date']?.toString(),
+      );
+    } catch (e) {
+      return ContentModel.empty();
+    }
+  }
+
+  factory ContentModel.empty() {
     return ContentModel(
-      id: (json['_id'] ?? json['id'] ?? '').toString(),
-      externalId: (json['ext_id'] ?? json['external_id'] ?? '').toString(),
-
-      type: json['type']?.toString() ?? 'unknown',
-      title: json['title']?.toString() ?? 'No Title',
-      subtitle: json['subtitle']?.toString(),
-      description: json['description']?.toString(),
-      imageUrl: json['image_url']?.toString(),
-
-      rating: json['rating'] != null ? (json['rating'] as num).toDouble() : 0.0,
-
-      genres: json['genres'] != null
-          ? List<String>.from(json['genres'].map((g) => g.toString()))
-          : const [],
-
-      releaseDate: json['release_date']?.toString(),
+      id: '',
+      externalId: '',
+      type: 'unknown',
+      title: 'Loading Error',
+      genres: [],
     );
   }
 

@@ -1,3 +1,5 @@
+import 'package:omnisource/data/models/playlist_model.dart';
+
 import '../../domain/entities/unified_content.dart';
 import '../../domain/repositories/content_repository.dart';
 import '../models/content_model.dart';
@@ -68,9 +70,13 @@ class ContentRepositoryImpl implements ContentRepository {
       ApiConstants.favorites,
       queryParameters: {if (type != null) 'type': type},
     );
-    return (response.data as List)
-        .map((item) => ContentModel.fromJson(item))
-        .toList();
+
+    return (response.data as List).map((item) {
+      if (item['ext_id'] != null) {
+        item['external_id'] = item['ext_id'];
+      }
+      return ContentModel.fromJson(item);
+    }).toList();
   }
 
   @override
@@ -92,6 +98,14 @@ class ContentRepositoryImpl implements ContentRepository {
     );
     return (response.data as List)
         .map((i) => ContentModel.fromJson(i))
+        .toList();
+  }
+
+  @override
+  Future<List<PlaylistModel>> getPlaylists() async {
+    final response = await _dio.get(ApiConstants.playlists);
+    return (response.data as List)
+        .map((item) => PlaylistModel.fromJson(item))
         .toList();
   }
 }

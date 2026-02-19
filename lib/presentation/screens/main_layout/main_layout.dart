@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:omnisource/presentation/screens/discover/discover_screen.dart';
 import 'package:omnisource/presentation/screens/home/home_screen.dart';
-import 'package:omnisource/presentation/screens/library/library_page.dart';
+import 'package:omnisource/presentation/screens/library/library_screen.dart';
 import 'package:omnisource/presentation/screens/search/search_screen.dart';
 
 class MainLayout extends StatefulWidget {

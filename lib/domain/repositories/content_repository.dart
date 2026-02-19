@@ -1,4 +1,5 @@
 import '../entities/unified_content.dart';
+import '../../data/models/playlist_model.dart';
 
 abstract class ContentRepository {
   Future<List<UnifiedContent>> search(String query, {String? type});
@@ -8,4 +9,5 @@ abstract class ContentRepository {
   Future<List<UnifiedContent>> getTrending({String? type});
   Future<List<UnifiedContent>> getRecommendations({String? type});
   Future<List<UnifiedContent>> getDiscovery(String tag);
+  Future<List<PlaylistModel>> getPlaylists();
 }
