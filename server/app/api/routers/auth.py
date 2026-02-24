@@ -33,7 +33,7 @@ async def register(user_in: UserCreate):
         email=user_in.email,
         hashed_password=get_password_hash(user_in.password),
         interests=user_in.interests,
-        is_onboarding_complited=False
+        is_onboarding_completed=False
     )
     await new_user.insert()
     return {

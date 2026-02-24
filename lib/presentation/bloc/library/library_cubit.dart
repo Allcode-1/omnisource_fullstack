@@ -1,8 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../domain/repositories/content_repository.dart';
 import '../../../domain/repositories/playlist_repository.dart';
 import '../../../domain/entities/unified_content.dart';
-import '../../../data/models/playlist_model.dart';
 import 'library_state.dart';
 
 class LibraryCubit extends Cubit<LibraryState> {
@@ -14,40 +14,168 @@ class LibraryCubit extends Cubit<LibraryState> {
     required this.playlistRepository,
   }) : super(LibraryInitial());
 
+  Future<LibraryLoaded> _fetchLoadedState() async {
+    final favorites = await contentRepository.getFavorites();
+    final playlists = await playlistRepository.getPlaylists();
+    final playlistItemsById = <String, List<UnifiedContent>>{};
+
+    await Future.wait(
+      playlists.map((playlist) async {
+        try {
+          playlistItemsById[playlist.id] = await playlistRepository
+              .getPlaylistContent(playlist.id);
+        } catch (e, st) {
+          AppLogger.error(
+            'Failed to load playlist content for ${playlist.id}',
+            error: e,
+            stackTrace: st,
+            name: 'LibraryCubit',
+          );
+          playlistItemsById[playlist.id] = const [];
+        }
+      }),
+    );
+
+    return LibraryLoaded(
+      favorites: favorites,
+      playlists: playlists,
+      playlistItemsById: playlistItemsById,
+    );
+  }
+
   Future<void> loadLibraryData() async {
     emit(LibraryLoading());
     try {
-      final results = await Future.wait([
-        contentRepository.getFavorites(),
-        playlistRepository.getPlaylists(),
-      ]);
-      emit(
-        LibraryLoaded(
-          favorites: results[0] as List<UnifiedContent>,
-          playlists: results[1] as List<PlaylistModel>,
-        ),
+      emit(await _fetchLoadedState());
+    } catch (e, st) {
+      AppLogger.error(
+        'Library load failed',
+        error: e,
+        stackTrace: st,
+        name: 'LibraryCubit',
       );
-    } catch (e) {
-      print("Library Load Error: $e");
-      emit(LibraryError("Failed to load library data"));
+      emit(LibraryError('Failed to load library data'));
     }
   }
 
   Future<void> createPlaylist(String title) async {
     try {
       await playlistRepository.createPlaylist(title);
-      await loadLibraryData(); // Обновляем список
-    } catch (e) {
-      print("Create Error: $e");
+      AppLogger.info('Playlist created: $title', name: 'LibraryCubit');
+    } catch (e, st) {
+      AppLogger.error(
+        'Create playlist failed',
+        error: e,
+        stackTrace: st,
+        name: 'LibraryCubit',
+      );
+    } finally {
+      await loadLibraryData();
     }
   }
 
   Future<void> deletePlaylist(String id) async {
     try {
       await playlistRepository.deletePlaylist(id);
+      AppLogger.info('Playlist deleted: $id', name: 'LibraryCubit');
+    } catch (e, st) {
+      AppLogger.error(
+        'Delete playlist failed',
+        error: e,
+        stackTrace: st,
+        name: 'LibraryCubit',
+      );
+    } finally {
       await loadLibraryData();
-    } catch (e) {
-      print("Delete Error: $e");
     }
+  }
+
+  Future<void> toggleFavorite(UnifiedContent item) async {
+    try {
+      await contentRepository.toggleLike(item);
+      AppLogger.info(
+        'Favorite toggled: ${item.externalId}',
+        name: 'LibraryCubit',
+      );
+    } catch (e, st) {
+      AppLogger.error(
+        'Toggle favorite failed',
+        error: e,
+        stackTrace: st,
+        name: 'LibraryCubit',
+      );
+    } finally {
+      await loadLibraryData();
+    }
+  }
+
+  Future<void> addItemToPlaylist(String playlistId, UnifiedContent item) async {
+    try {
+      await playlistRepository.addToPlaylist(playlistId, item);
+      AppLogger.info(
+        'Added to playlist: $playlistId -> ${item.externalId}',
+        name: 'LibraryCubit',
+      );
+    } catch (e, st) {
+      AppLogger.error(
+        'Add to playlist failed',
+        error: e,
+        stackTrace: st,
+        name: 'LibraryCubit',
+      );
+    } finally {
+      await loadLibraryData();
+    }
+  }
+
+  Future<void> removeItemsFromPlaylist(
+    String playlistId,
+    List<String> externalIds,
+  ) async {
+    try {
+      await Future.wait(
+        externalIds.map((externalId) {
+          return playlistRepository.removeFromPlaylist(playlistId, externalId);
+        }),
+      );
+      AppLogger.info(
+        'Removed ${externalIds.length} items from $playlistId',
+        name: 'LibraryCubit',
+      );
+    } catch (e, st) {
+      AppLogger.error(
+        'Remove from playlist failed',
+        error: e,
+        stackTrace: st,
+        name: 'LibraryCubit',
+      );
+    } finally {
+      await loadLibraryData();
+    }
+  }
+
+  Future<void> removeFavorites(List<UnifiedContent> items) async {
+    try {
+      await Future.wait(items.map(contentRepository.toggleLike));
+      AppLogger.info(
+        'Removed ${items.length} items from favorites',
+        name: 'LibraryCubit',
+      );
+    } catch (e, st) {
+      AppLogger.error(
+        'Remove favorites failed',
+        error: e,
+        stackTrace: st,
+        name: 'LibraryCubit',
+      );
+    } finally {
+      await loadLibraryData();
+    }
+  }
+
+  List<UnifiedContent> getPlaylistItems(String playlistId) {
+    final currentState = state;
+    if (currentState is! LibraryLoaded) return const [];
+    return currentState.playlistItemsById[playlistId] ?? const [];
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:omnisource/presentation/screens/discover/discover_screen.dart';
+import 'package:omnisource/presentation/screens/deep_research/deep_research_screen.dart';
 import 'package:omnisource/presentation/screens/home/home_screen.dart';
 import 'package:omnisource/presentation/screens/library/library_screen.dart';
 import 'package:omnisource/presentation/screens/search/search_screen.dart';
@@ -17,7 +17,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    const DiscoverScreen(),
+    const DeepResearchScreen(),
     const LibraryScreen(),
     const SearchScreen(),
   ];

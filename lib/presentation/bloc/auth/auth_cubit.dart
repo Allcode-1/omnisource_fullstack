@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import 'auth_state.dart';
 
@@ -10,6 +11,7 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> login(String email, String password) async {
     emit(AuthLoading());
     try {
+      AppLogger.info('Auth login started for $email', name: 'AuthCubit');
       final user = await authRepository.login(email, password);
       emit(
         AuthAuthenticated(
@@ -17,7 +19,14 @@ class AuthCubit extends Cubit<AuthState> {
           needsOnboarding: !user.isOnboardingCompleted,
         ),
       );
-    } catch (e) {
+      AppLogger.info('Auth login success for $email', name: 'AuthCubit');
+    } catch (e, st) {
+      AppLogger.error(
+        'Auth login failed',
+        error: e,
+        stackTrace: st,
+        name: 'AuthCubit',
+      );
       emit(AuthError("Login failed. Check your credentials."));
     }
   }
@@ -25,6 +34,7 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> register(String email, String password, String username) async {
     emit(AuthLoading());
     try {
+      AppLogger.info('Auth register started for $email', name: 'AuthCubit');
       final user = await authRepository.register(email, password, username);
       emit(
         AuthAuthenticated(
@@ -32,7 +42,14 @@ class AuthCubit extends Cubit<AuthState> {
           needsOnboarding: !user.isOnboardingCompleted,
         ),
       );
-    } catch (e) {
+      AppLogger.info('Auth register success for $email', name: 'AuthCubit');
+    } catch (e, st) {
+      AppLogger.error(
+        'Auth register failed',
+        error: e,
+        stackTrace: st,
+        name: 'AuthCubit',
+      );
       emit(AuthError("Registration failed."));
     }
   }
@@ -40,12 +57,21 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> completeOnboarding(List<String> tags) async {
     emit(AuthLoading());
     try {
+      AppLogger.info('Onboarding completion started', name: 'AuthCubit');
       await authRepository.completeOnboarding(tags);
       final user = await authRepository.getCurrentUser();
       if (user != null) {
         emit(AuthAuthenticated(user: user, needsOnboarding: false));
+      } else {
+        emit(AuthError("Session expired. Please login again."));
       }
-    } catch (e) {
+    } catch (e, st) {
+      AppLogger.error(
+        'Onboarding completion failed',
+        error: e,
+        stackTrace: st,
+        name: 'AuthCubit',
+      );
       emit(AuthError("Failed to save your preferences."));
     }
   }
@@ -54,6 +80,7 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final user = await authRepository.getCurrentUser();
       if (user != null) {
+        AppLogger.info('Auth restored from storage', name: 'AuthCubit');
         emit(
           AuthAuthenticated(
             user: user,
@@ -63,7 +90,13 @@ class AuthCubit extends Cubit<AuthState> {
       } else {
         emit(AuthInitial());
       }
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.error(
+        'Auth check failed',
+        error: e,
+        stackTrace: st,
+        name: 'AuthCubit',
+      );
       emit(AuthInitial());
     }
   }
@@ -72,8 +105,14 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthLoading());
     try {
       await authRepository.forgotPassword(email);
-      emit(AuthInitial()); // Чтобы вернуться в обычное состояние
-    } catch (e) {
+      emit(AuthInitial());
+    } catch (e, st) {
+      AppLogger.error(
+        'Forgot password failed',
+        error: e,
+        stackTrace: st,
+        name: 'AuthCubit',
+      );
       emit(AuthError("Failed to send reset email"));
     }
   }
@@ -82,14 +121,30 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthLoading());
     try {
       await authRepository.resetPassword(token, newPassword);
-      emit(AuthInitial()); // После смены пароля — на логин
-    } catch (e) {
+      emit(AuthInitial());
+    } catch (e, st) {
+      AppLogger.error(
+        'Reset password failed',
+        error: e,
+        stackTrace: st,
+        name: 'AuthCubit',
+      );
       emit(AuthError("Invalid token or password reset failed"));
     }
   }
 
   Future<void> logout() async {
-    await authRepository.logout();
-    emit(AuthInitial());
+    try {
+      await authRepository.logout();
+      emit(AuthInitial());
+    } catch (e, st) {
+      AppLogger.error(
+        'Logout failed',
+        error: e,
+        stackTrace: st,
+        name: 'AuthCubit',
+      );
+      emit(AuthError("Logout failed"));
+    }
   }
 }

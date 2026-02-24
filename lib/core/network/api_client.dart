@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../utils/app_logger.dart';
 import '../constants/api_constants.dart';
 
 class ApiClient {
@@ -23,12 +24,25 @@ class ApiClient {
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+          AppLogger.info(
+            'HTTP ${options.method} ${options.path}',
+            name: 'ApiClient',
+          );
           return handler.next(options);
         },
         onError: (DioException e, handler) {
           if (e.response?.statusCode == 401) {
-            print("Authorization error: Token is non valide");
+            AppLogger.warning(
+              'Authorization error: token is invalid',
+              name: 'ApiClient',
+            );
           }
+          AppLogger.error(
+            'HTTP error ${e.requestOptions.method} ${e.requestOptions.path}',
+            error: e,
+            stackTrace: e.stackTrace,
+            name: 'ApiClient',
+          );
           return handler.next(e);
         },
       ),

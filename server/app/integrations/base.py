@@ -1,5 +1,8 @@
 import httpx
 from typing import Optional, Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 class BaseIntegration:
     def __init__(self, base_url: str):
@@ -10,6 +13,11 @@ class BaseIntegration:
             url = f"{self.base_url}{endpoint}"
             response = await client.get(url, params=params, headers=headers, timeout=5.0)
             if response.status_code != 200:
-                print(f"API Error {url}: {response.status_code} - {response.text}")
+                logger.error(
+                    "API Error %s: %s - %s",
+                    url,
+                    response.status_code,
+                    response.text,
+                )
                 return None
             return response.json()

@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../domain/entities/unified_content.dart';
-import '../../bloc/home/home_cubit.dart';
 import '../../bloc/library/library_cubit.dart';
 import '../../bloc/library/library_state.dart';
 import './detail_screen.dart';
@@ -19,7 +18,9 @@ class ContentCard extends StatelessWidget {
       builder: (context, libraryState) {
         bool isLiked = false;
         if (libraryState is LibraryLoaded) {
-          isLiked = libraryState.favorites.any((fav) => fav.id == item.id);
+          isLiked = libraryState.favorites.any(
+            (fav) => fav.externalId == item.externalId,
+          );
         }
 
         return GestureDetector(
@@ -43,10 +44,9 @@ class ContentCard extends StatelessWidget {
                       right: 8,
                       child: GestureDetector(
                         onTap: () async {
-                          await context.read<HomeCubit>().toggleLike(item);
-                          if (context.mounted) {
-                            context.read<LibraryCubit>().loadLibraryData();
-                          }
+                          await context.read<LibraryCubit>().toggleFavorite(
+                            item,
+                          );
                         },
                         child: Container(
                           padding: const EdgeInsets.all(6),

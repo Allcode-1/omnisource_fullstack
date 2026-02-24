@@ -1,5 +1,6 @@
 import 'package:omnisource/data/models/playlist_model.dart';
 
+import '../../core/utils/app_logger.dart';
 import '../../domain/entities/unified_content.dart';
 import '../../domain/repositories/content_repository.dart';
 import '../models/content_model.dart';
@@ -12,100 +13,198 @@ class ContentRepositoryImpl implements ContentRepository {
 
   @override
   Future<Map<String, List<UnifiedContent>>> getHomeData({String? type}) async {
-    final response = await _dio.get(
-      ApiConstants.home,
-      queryParameters: {if (type != null) 'type': type},
-    );
+    try {
+      final response = await _dio.get(
+        ApiConstants.home,
+        queryParameters: {if (type != null) 'type': type},
+      );
 
-    final Map<String, dynamic> data = response.data;
-    return data.map(
-      (key, value) => MapEntry(
-        key,
-        (value as List).map((i) {
-          try {
-            return ContentModel.fromJson(i);
-          } catch (e) {
-            print("ERROR mapping item in section $key: $e");
-            print("Offending item: $i");
-            rethrow;
-          }
-        }).toList(),
-      ),
-    );
+      final Map<String, dynamic> data = Map<String, dynamic>.from(
+        response.data as Map,
+      );
+      return data.map(
+        (key, value) => MapEntry(
+          key,
+          (value as List).map((i) => ContentModel.fromJson(i)).toList(),
+        ),
+      );
+    } catch (e, st) {
+      AppLogger.error(
+        'Home data request failed',
+        error: e,
+        stackTrace: st,
+        name: 'ContentRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
   Future<List<UnifiedContent>> getRecommendations({String? type}) async {
-    final response = await _dio.get(
-      ApiConstants.recommendations,
-      queryParameters: {if (type != null) 'type': type},
-    );
-    return (response.data as List)
-        .map((i) => ContentModel.fromJson(i))
-        .toList();
+    try {
+      final response = await _dio.get(
+        ApiConstants.recommendations,
+        queryParameters: {if (type != null) 'type': type},
+      );
+      return (response.data as List)
+          .map((i) => ContentModel.fromJson(i))
+          .toList();
+    } catch (e, st) {
+      AppLogger.error(
+        'Recommendations request failed',
+        error: e,
+        stackTrace: st,
+        name: 'ContentRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
   Future<List<UnifiedContent>> search(String query, {String? type}) async {
-    final response = await _dio.get(
-      ApiConstants.search,
-      queryParameters: {'query': query, if (type != null) 'type': type},
-    );
-    return (response.data as List)
-        .map((item) => ContentModel.fromJson(item))
-        .toList();
+    try {
+      final response = await _dio.get(
+        ApiConstants.search,
+        queryParameters: {'query': query, if (type != null) 'type': type},
+      );
+      return (response.data as List)
+          .map((item) => ContentModel.fromJson(item))
+          .toList();
+    } catch (e, st) {
+      AppLogger.error(
+        'Search request failed',
+        error: e,
+        stackTrace: st,
+        name: 'ContentRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
   Future<void> toggleLike(UnifiedContent item) async {
-    await _dio.post(
-      ApiConstants.like,
-      data: ContentModel.fromEntity(item).toJson(),
-    );
+    try {
+      await _dio.post(
+        ApiConstants.like,
+        data: ContentModel.fromEntity(item).toJson(),
+      );
+    } catch (e, st) {
+      AppLogger.error(
+        'Toggle like failed',
+        error: e,
+        stackTrace: st,
+        name: 'ContentRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
   Future<List<UnifiedContent>> getFavorites({String? type}) async {
-    final response = await _dio.get(
-      ApiConstants.favorites,
-      queryParameters: {if (type != null) 'type': type},
-    );
+    try {
+      final response = await _dio.get(
+        ApiConstants.favorites,
+        queryParameters: {if (type != null) 'type': type},
+      );
 
-    return (response.data as List).map((item) {
-      if (item['ext_id'] != null) {
-        item['external_id'] = item['ext_id'];
-      }
-      return ContentModel.fromJson(item);
-    }).toList();
+      return (response.data as List).map((item) {
+        if (item is Map && item['ext_id'] != null) {
+          item['external_id'] = item['ext_id'];
+        }
+        return ContentModel.fromJson(item);
+      }).toList();
+    } catch (e, st) {
+      AppLogger.error(
+        'Favorites request failed',
+        error: e,
+        stackTrace: st,
+        name: 'ContentRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
   Future<List<UnifiedContent>> getTrending({String? type}) async {
-    final response = await _dio.get(
-      ApiConstants.trending,
-      queryParameters: {if (type != null) 'type': type},
-    );
-    return (response.data as List)
-        .map((i) => ContentModel.fromJson(i))
-        .toList();
+    try {
+      final response = await _dio.get(
+        ApiConstants.trending,
+        queryParameters: {if (type != null) 'type': type},
+      );
+      return (response.data as List)
+          .map((i) => ContentModel.fromJson(i))
+          .toList();
+    } catch (e, st) {
+      AppLogger.error(
+        'Trending request failed',
+        error: e,
+        stackTrace: st,
+        name: 'ContentRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
   Future<List<UnifiedContent>> getDiscovery(String tag) async {
-    final response = await _dio.get(
-      '/content/discover',
-      queryParameters: {'tag': tag},
-    );
-    return (response.data as List)
-        .map((i) => ContentModel.fromJson(i))
-        .toList();
+    try {
+      final response = await _dio.get(
+        '/content/discover',
+        queryParameters: {'tag': tag},
+      );
+      return (response.data as List)
+          .map((i) => ContentModel.fromJson(i))
+          .toList();
+    } catch (e, st) {
+      AppLogger.error(
+        'Discovery request failed',
+        error: e,
+        stackTrace: st,
+        name: 'ContentRepository',
+      );
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<UnifiedContent>> getDeepResearch(
+    String tag, {
+    String? type,
+  }) async {
+    try {
+      final response = await _dio.get(
+        ApiConstants.deepResearch,
+        queryParameters: {'tag': tag, if (type != null) 'type': type},
+      );
+      return (response.data as List)
+          .map((item) => ContentModel.fromJson(item))
+          .toList();
+    } catch (e, st) {
+      AppLogger.error(
+        'Deep research request failed',
+        error: e,
+        stackTrace: st,
+        name: 'ContentRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
   Future<List<PlaylistModel>> getPlaylists() async {
-    final response = await _dio.get(ApiConstants.playlists);
-    return (response.data as List)
-        .map((item) => PlaylistModel.fromJson(item))
-        .toList();
+    try {
+      final response = await _dio.get(ApiConstants.playlists);
+      return (response.data as List)
+          .map((item) => PlaylistModel.fromJson(item))
+          .toList();
+    } catch (e, st) {
+      AppLogger.error(
+        'Playlists request failed',
+        error: e,
+        stackTrace: st,
+        name: 'ContentRepository',
+      );
+      rethrow;
+    }
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../domain/repositories/content_repository.dart';
 import 'search_state.dart';
 
@@ -43,10 +44,20 @@ class SearchCubit extends Cubit<SearchState> {
       );
 
       emit(state.copyWith(results: results, isLoading: false));
-    } catch (e) {
+    } catch (e, st) {
+      AppLogger.error(
+        'Search failed for query: $query',
+        error: e,
+        stackTrace: st,
+        name: 'SearchCubit',
+      );
       emit(
         state.copyWith(isLoading: false, errorMessage: 'Something went wrong'),
       );
+    } finally {
+      if (state.isLoading) {
+        emit(state.copyWith(isLoading: false));
+      }
     }
   }
 

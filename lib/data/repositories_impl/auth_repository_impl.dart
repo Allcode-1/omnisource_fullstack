@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/utils/app_logger.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../models/user_model.dart';
@@ -12,41 +13,88 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<User> login(String email, String password) async {
-    final response = await _dio.post(
-      '/auth/login',
-      data: {'username': email, 'password': password},
-      options: Options(contentType: Headers.formUrlEncodedContentType),
-    );
+    try {
+      AppLogger.info(
+        'Login request started for $email',
+        name: 'AuthRepository',
+      );
+      final response = await _dio.post(
+        '/auth/login',
+        data: {'username': email, 'password': password},
+        options: Options(contentType: Headers.formUrlEncodedContentType),
+      );
 
-    final token = response.data['access_token'];
-    await _storage.write(key: 'jwt_token', value: token);
+      final token = response.data['access_token']?.toString();
+      if (token == null || token.isEmpty) {
+        throw Exception('Token is missing in login response');
+      }
 
-    return UserModel.fromJson(response.data['user']);
+      await _storage.write(key: 'jwt_token', value: token);
+      AppLogger.info('Login successful for $email', name: 'AuthRepository');
+      return UserModel.fromJson(response.data['user']);
+    } catch (e, st) {
+      AppLogger.error(
+        'Login failed',
+        error: e,
+        stackTrace: st,
+        name: 'AuthRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
   Future<User> register(String email, String password, String username) async {
-    final response = await _dio.post(
-      '/auth/register',
-      data: {'email': email, 'password': password, 'username': username},
-    );
-    final token = response.data['access_token'];
-    if (token != null) {
-      await _storage.write(key: 'jwt_token', value: token);
-    }
+    try {
+      AppLogger.info(
+        'Register request started for $email',
+        name: 'AuthRepository',
+      );
+      final response = await _dio.post(
+        '/auth/register',
+        data: {'email': email, 'password': password, 'username': username},
+      );
+      final token = response.data['access_token']?.toString();
+      if (token != null && token.isNotEmpty) {
+        await _storage.write(key: 'jwt_token', value: token);
+      }
 
-    return UserModel.fromJson(response.data['user']);
+      AppLogger.info('Register successful for $email', name: 'AuthRepository');
+      return UserModel.fromJson(response.data['user']);
+    } catch (e, st) {
+      AppLogger.error(
+        'Registration failed',
+        error: e,
+        stackTrace: st,
+        name: 'AuthRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
   Future<void> completeOnboarding(List<String> tags) async {
-    final token = await _storage.read(key: 'jwt_token');
+    try {
+      final token = await _storage.read(key: 'jwt_token');
 
-    await _dio.post(
-      '/user/complete-onboarding',
-      data: {'interests': tags},
-      options: Options(headers: {'Authorization': 'Bearer $token'}),
-    );
+      await _dio.post(
+        '/user/complete-onboarding',
+        data: {'interests': tags},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      AppLogger.info(
+        'Onboarding completed with ${tags.length} tags',
+        name: 'AuthRepository',
+      );
+    } catch (e, st) {
+      AppLogger.error(
+        'Complete onboarding failed',
+        error: e,
+        stackTrace: st,
+        name: 'AuthRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
@@ -62,8 +110,13 @@ class AuthRepositoryImpl implements AuthRepository {
         return UserModel.fromJson(response.data);
       }
       return null;
-    } catch (e) {
-      print("Error with getting user: $e");
+    } catch (e, st) {
+      AppLogger.error(
+        'Get current user failed',
+        error: e,
+        stackTrace: st,
+        name: 'AuthRepository',
+      );
       return null;
     }
   }
@@ -77,33 +130,84 @@ class AuthRepositoryImpl implements AuthRepository {
         return List<String>.from(response.data);
       }
       return [];
-    } catch (e) {
-      print("Error while loading tags: $e");
+    } catch (e, st) {
+      AppLogger.error(
+        'Load tags failed',
+        error: e,
+        stackTrace: st,
+        name: 'AuthRepository',
+      );
       return [];
     }
   }
 
   @override
   Future<void> forgotPassword(String email) async {
-    await _dio.post('/auth/forgot-password', data: {'email': email});
+    try {
+      await _dio.post('/auth/forgot-password', data: {'email': email});
+      AppLogger.info(
+        'Password reset requested for $email',
+        name: 'AuthRepository',
+      );
+    } catch (e, st) {
+      AppLogger.error(
+        'Forgot password failed',
+        error: e,
+        stackTrace: st,
+        name: 'AuthRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
   Future<void> resetPassword(String token, String newPassword) async {
-    await _dio.post(
-      '/auth/reset-password',
-      data: {'token': token, 'new_password': newPassword},
-    );
+    try {
+      await _dio.post(
+        '/auth/reset-password',
+        data: {'token': token, 'new_password': newPassword},
+      );
+      AppLogger.info('Password reset completed', name: 'AuthRepository');
+    } catch (e, st) {
+      AppLogger.error(
+        'Reset password failed',
+        error: e,
+        stackTrace: st,
+        name: 'AuthRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
   Future<void> logout() async {
-    await _storage.delete(key: 'jwt_token');
+    try {
+      await _storage.delete(key: 'jwt_token');
+      AppLogger.info('Logout successful', name: 'AuthRepository');
+    } catch (e, st) {
+      AppLogger.error(
+        'Logout failed',
+        error: e,
+        stackTrace: st,
+        name: 'AuthRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
   Future<bool> checkAuth() async {
-    final token = await _storage.read(key: 'jwt_token');
-    return token != null;
+    try {
+      final token = await _storage.read(key: 'jwt_token');
+      return token != null;
+    } catch (e, st) {
+      AppLogger.error(
+        'Check auth failed',
+        error: e,
+        stackTrace: st,
+        name: 'AuthRepository',
+      );
+      return false;
+    }
   }
 }

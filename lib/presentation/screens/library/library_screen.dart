@@ -28,7 +28,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget _buildPlaylistTile({
     required String title,
     required IconData icon,
-    required List<dynamic> items,
+    required List<UnifiedContent> items,
+    String? playlistId,
+    String? description,
+    bool isFavorites = false,
     Color? iconColor,
   }) {
     return ListTile(
@@ -46,13 +49,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
       subtitle: Text("${items.length} items"),
       trailing: const Icon(CupertinoIcons.right_chevron, size: 18),
       onTap: () {
-        final safeItems = items.whereType<UnifiedContent>().toList();
-
         Navigator.push(
           context,
           CupertinoPageRoute(
-            builder: (_) =>
-                PlaylistDetailScreen(title: title, initialItems: safeItems),
+            builder: (_) => PlaylistDetailScreen(
+              playlistId: playlistId,
+              title: title,
+              description: description,
+              initialItems: items,
+              isFavorites: isFavorites,
+            ),
           ),
         );
       },
@@ -118,6 +124,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             icon: CupertinoIcons.heart_fill,
                             iconColor: Colors.redAccent,
                             items: state.favorites,
+                            isFavorites: true,
                           ),
 
                           const Divider(color: Colors.white10, height: 1),
@@ -126,7 +133,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             (playlist) => _buildPlaylistTile(
                               title: playlist.title,
                               icon: CupertinoIcons.music_note_list,
-                              items: playlist.items,
+                              playlistId: playlist.id,
+                              description: playlist.description,
+                              items:
+                                  state.playlistItemsById[playlist.id] ??
+                                  const [],
                             ),
                           ),
                         ]),

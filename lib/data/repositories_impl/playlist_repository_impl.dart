@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../core/utils/app_logger.dart';
 import '../../domain/entities/unified_content.dart';
 import '../../domain/repositories/playlist_repository.dart';
 import '../models/content_model.dart';
@@ -11,10 +12,20 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
 
   @override
   Future<List<PlaylistModel>> getPlaylists() async {
-    final response = await _dio.get(ApiConstants.playlists);
-    return (response.data as List)
-        .map((item) => PlaylistModel.fromJson(item))
-        .toList();
+    try {
+      final response = await _dio.get(ApiConstants.playlists);
+      return (response.data as List)
+          .map((item) => PlaylistModel.fromJson(item))
+          .toList();
+    } catch (e, st) {
+      AppLogger.error(
+        'Get playlists failed',
+        error: e,
+        stackTrace: st,
+        name: 'PlaylistRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
@@ -22,43 +33,96 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
     String title, {
     String? description,
   }) async {
-    final response = await _dio.post(
-      ApiConstants.playlists,
-      queryParameters: {
-        'title': title,
-        if (description != null) 'description': description,
-      },
-    );
-    return PlaylistModel.fromJson(response.data);
+    try {
+      final response = await _dio.post(
+        ApiConstants.playlists,
+        queryParameters: {
+          'title': title,
+          if (description != null) 'description': description,
+        },
+      );
+      return PlaylistModel.fromJson(response.data);
+    } catch (e, st) {
+      AppLogger.error(
+        'Create playlist failed',
+        error: e,
+        stackTrace: st,
+        name: 'PlaylistRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
   Future<void> deletePlaylist(String id) async {
-    await _dio.delete('${ApiConstants.playlists}/$id');
+    try {
+      await _dio.delete('${ApiConstants.playlists}/$id');
+    } catch (e, st) {
+      AppLogger.error(
+        'Delete playlist failed',
+        error: e,
+        stackTrace: st,
+        name: 'PlaylistRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
   Future<void> addToPlaylist(String playlistId, UnifiedContent content) async {
-    await _dio.post(
-      '${ApiConstants.playlists}/$playlistId/add',
-      data: ContentModel.fromEntity(content).toJson(),
-    );
+    try {
+      await _dio.post(
+        '${ApiConstants.playlists}/$playlistId/add',
+        data: ContentModel.fromEntity(content).toJson(),
+      );
+    } catch (e, st) {
+      AppLogger.error(
+        'Add to playlist failed',
+        error: e,
+        stackTrace: st,
+        name: 'PlaylistRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
   Future<void> removeFromPlaylist(String playlistId, String externalId) async {
-    await _dio.delete(
-      '${ApiConstants.playlists}/$playlistId/remove/$externalId',
-    );
+    try {
+      await _dio.delete(
+        '${ApiConstants.playlists}/$playlistId/remove/$externalId',
+      );
+    } catch (e, st) {
+      AppLogger.error(
+        'Remove from playlist failed',
+        error: e,
+        stackTrace: st,
+        name: 'PlaylistRepository',
+      );
+      rethrow;
+    }
   }
 
   @override
   Future<List<UnifiedContent>> getPlaylistContent(String playlistId) async {
-    final response = await _dio.get('${ApiConstants.playlists}/$playlistId');
-    final List itemsRaw = response.data['items'] ?? [];
-    return itemsRaw.map((item) {
-      if (item['ext_id'] != null) item['external_id'] = item['ext_id'];
-      return ContentModel.fromJson(item);
-    }).toList();
+    try {
+      final response = await _dio.get('${ApiConstants.playlists}/$playlistId');
+      final data = response.data;
+      final List itemsRaw = data is Map ? (data['items'] as List? ?? []) : [];
+      return itemsRaw.map((item) {
+        if (item is Map && item['ext_id'] != null) {
+          item['external_id'] = item['ext_id'];
+        }
+        return ContentModel.fromJson(item);
+      }).toList();
+    } catch (e, st) {
+      AppLogger.error(
+        'Get playlist content failed',
+        error: e,
+        stackTrace: st,
+        name: 'PlaylistRepository',
+      );
+      rethrow;
+    }
   }
 }

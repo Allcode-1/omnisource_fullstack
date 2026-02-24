@@ -174,7 +174,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _buildSearchBar(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
-      height: 46,
+      height: 52,
       decoration: BoxDecoration(
         color: const Color(0xFF1C1C1E),
         borderRadius: BorderRadius.circular(16),
@@ -193,40 +193,35 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
         ],
       ),
-      child: TextField(
+      child: CupertinoSearchTextField(
         controller: _searchController,
         focusNode: _focusNode,
+        backgroundColor: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(14),
+        itemColor: Colors.white54,
+        style: const TextStyle(color: Colors.white, fontSize: 15),
+        placeholderStyle: const TextStyle(color: Colors.white38, fontSize: 15),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        prefixIcon: const Icon(
+          CupertinoIcons.search,
+          color: Colors.white54,
+          size: 18,
+        ),
+        suffixIcon: const Icon(
+          CupertinoIcons.xmark_circle_fill,
+          color: Colors.white30,
+          size: 16,
+        ),
+        placeholder: "Artists, movies, books",
+        onSuffixTap: () {
+          _searchController.clear();
+          context.read<SearchCubit>().search('');
+          setState(() {});
+        },
         onChanged: (val) {
           context.read<SearchCubit>().search(val);
           setState(() {});
         },
-        cursorColor: const Color(0xFF0A84FF),
-        style: const TextStyle(color: Colors.white, fontSize: 15),
-        decoration: InputDecoration(
-          hintText: "Artists, movies, books",
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
-          prefixIcon: const Icon(
-            CupertinoIcons.search,
-            color: Colors.white38,
-            size: 20,
-          ),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? GestureDetector(
-                  onTap: () {
-                    _searchController.clear();
-                    context.read<SearchCubit>().search('');
-                    setState(() {});
-                  },
-                  child: const Icon(
-                    CupertinoIcons.clear_circled_solid,
-                    color: Colors.white30,
-                    size: 18,
-                  ),
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 12),
-        ),
       ),
     );
   }

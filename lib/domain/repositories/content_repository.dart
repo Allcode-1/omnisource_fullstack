@@ -9,5 +9,6 @@ abstract class ContentRepository {
   Future<List<UnifiedContent>> getTrending({String? type});
   Future<List<UnifiedContent>> getRecommendations({String? type});
   Future<List<UnifiedContent>> getDiscovery(String tag);
+  Future<List<UnifiedContent>> getDeepResearch(String tag, {String? type});
   Future<List<PlaylistModel>> getPlaylists();
 }

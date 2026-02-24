@@ -1,17 +1,23 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../domain/entities/unified_content.dart';
+import '../../bloc/library/library_cubit.dart';
 
 class PlaylistDetailScreen extends StatefulWidget {
+  final String? playlistId;
   final String title;
   final String? description;
   final List<UnifiedContent> initialItems;
+  final bool isFavorites;
 
   const PlaylistDetailScreen({
     super.key,
+    this.playlistId,
     required this.title,
     this.description,
     required this.initialItems,
+    this.isFavorites = false,
   });
 
   @override
@@ -23,11 +29,51 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   Set<String> selectedIds = {};
   String filterType = 'all'; // all, music, movie, book
   bool sortNewest = true;
+  bool _isRemoving = false;
+  late List<UnifiedContent> _items;
+
+  @override
+  void initState() {
+    super.initState();
+    _items = List<UnifiedContent>.from(widget.initialItems);
+  }
+
+  Future<void> _removeSelected() async {
+    if (selectedIds.isEmpty || _isRemoving) return;
+
+    final cubit = context.read<LibraryCubit>();
+    setState(() => _isRemoving = true);
+
+    try {
+      final ids = selectedIds.toList();
+      if (widget.isFavorites) {
+        final selectedItems = _items
+            .where((item) => selectedIds.contains(item.externalId))
+            .toList();
+        await cubit.removeFavorites(selectedItems);
+      } else if (widget.playlistId != null) {
+        await cubit.removeItemsFromPlaylist(widget.playlistId!, ids);
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _items = _items
+            .where((item) => !selectedIds.contains(item.externalId))
+            .toList();
+        selectedIds.clear();
+        isEditMode = false;
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isRemoving = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     // Фильтрация и сортировка
-    List<UnifiedContent> filteredItems = widget.initialItems.where((item) {
+    List<UnifiedContent> filteredItems = _items.where((item) {
       if (filterType == 'all') return true;
       return item.type == filterType;
     }).toList();
@@ -106,7 +152,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                       child: const Text("Select All"),
                       onPressed: () => setState(
                         () => selectedIds = filteredItems
-                            .map((e) => e.id)
+                            .map((e) => e.externalId)
                             .toSet(),
                       ),
                     ),
@@ -123,7 +169,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
           SliverList(
             delegate: SliverChildBuilderDelegate((context, index) {
               final item = filteredItems[index];
-              final isSelected = selectedIds.contains(item.id);
+              final isSelected = selectedIds.contains(item.externalId);
 
               return ListTile(
                 leading: Stack(
@@ -170,9 +216,9 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                   if (isEditMode) {
                     setState(() {
                       if (isSelected)
-                        selectedIds.remove(item.id);
+                        selectedIds.remove(item.externalId);
                       else
-                        selectedIds.add(item.id);
+                        selectedIds.add(item.externalId);
                     });
                   } else {}
                 },
@@ -188,8 +234,10 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
               padding: const EdgeInsets.all(16),
               child: CupertinoButton(
                 color: CupertinoColors.destructiveRed,
-                child: const Text("Remove Selected"),
-                onPressed: () {},
+                child: _isRemoving
+                    ? const CupertinoActivityIndicator()
+                    : const Text("Remove Selected"),
+                onPressed: _isRemoving ? null : _removeSelected,
               ),
             )
           : null,
@@ -216,9 +264,9 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   }
 
   String _getStats() {
-    int music = widget.initialItems.where((i) => i.type == 'music').length;
-    int movie = widget.initialItems.where((i) => i.type == 'movie').length;
-    int book = widget.initialItems.where((i) => i.type == 'book').length;
+    int music = _items.where((i) => i.type == 'music').length;
+    int movie = _items.where((i) => i.type == 'movie').length;
+    int book = _items.where((i) => i.type == 'book').length;
     return "$music music, $movie movies, $book books";
   }
 }

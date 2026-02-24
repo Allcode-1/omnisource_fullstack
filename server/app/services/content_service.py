@@ -1,5 +1,6 @@
 import asyncio
 from typing import List, Dict, Any
+import logging
 from app.integrations.tmdb import TMDBClient
 from app.integrations.google_books import GoogleBooksClient
 from app.integrations.spotify import SpotifyClient
@@ -8,6 +9,8 @@ from app.utils.sanitizer import ContentSanitizer
 from app.schemas.content import UnifiedContent
 from app.core.tags import get_tag_queries
 from app.core.redis import redis_client 
+
+logger = logging.getLogger(__name__)
 
 class ContentService:
     def __init__(self):
@@ -170,7 +173,7 @@ class ContentService:
                     results.extend([self.mapper.map_google_books(b) for b in b_raw.get("items", [])[:5]])
 
         except Exception as e:
-            print(f"Critical service error: {e}")
+            logger.exception("Critical service error in get_recommendations: %s", e)
             return []
 
         valid_results = [r for r in results if self.sanitizer.is_valid(r)]

@@ -11,6 +11,8 @@ import 'data/repositories_impl/content_repository_impl.dart';
 import 'data/repositories_impl/playlist_repository_impl.dart';
 
 import 'domain/repositories/user_repository.dart';
+import 'domain/repositories/content_repository.dart';
+import 'domain/repositories/playlist_repository.dart';
 import 'data/repositories_impl/user_repository_impl.dart';
 
 import 'package:omnisource/domain/repositories/auth_repository.dart';
@@ -43,10 +45,10 @@ void main() {
         RepositoryProvider<UserRepository>(
           create: (context) => UserRepositoryImpl(apiClient),
         ),
-        RepositoryProvider<ContentRepositoryImpl>(
+        RepositoryProvider<ContentRepository>(
           create: (context) => ContentRepositoryImpl(apiClient.dio),
         ),
-        RepositoryProvider<PlaylistRepositoryImpl>(
+        RepositoryProvider<PlaylistRepository>(
           create: (context) => PlaylistRepositoryImpl(apiClient.dio),
         ),
       ],
@@ -59,16 +61,15 @@ void main() {
           ),
           BlocProvider(
             create: (context) =>
-                HomeCubit(context.read<ContentRepositoryImpl>())..loadContent(),
+                HomeCubit(context.read<ContentRepository>())..loadContent(),
           ),
           BlocProvider(
-            create: (context) =>
-                SearchCubit(context.read<ContentRepositoryImpl>()),
+            create: (context) => SearchCubit(context.read<ContentRepository>()),
           ),
           BlocProvider(
             create: (context) => LibraryCubit(
-              contentRepository: context.read<ContentRepositoryImpl>(),
-              playlistRepository: context.read<PlaylistRepositoryImpl>(),
+              contentRepository: context.read<ContentRepository>(),
+              playlistRepository: context.read<PlaylistRepository>(),
             ),
           ),
         ],

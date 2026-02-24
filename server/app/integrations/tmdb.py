@@ -1,6 +1,9 @@
 import httpx
 from typing import Dict, Any
 from app.core.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 class TMDBClient:
     def __init__(self):
@@ -28,12 +31,16 @@ class TMDBClient:
                 )
                 
                 if response.status_code != 200:
-                    print(f"TMDB API Error: {response.status_code} - {response.text}")
+                    logger.error(
+                        "TMDB API Error: %s - %s",
+                        response.status_code,
+                        response.text,
+                    )
                 
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
-                print(f"TMDB Request Fail on {endpoint}: {e}")
+                logger.exception("TMDB request failed on %s: %s", endpoint, e)
                 return {"results": []}
 
     async def search_movies(self, query: str) -> Dict[str, Any]:

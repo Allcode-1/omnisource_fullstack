@@ -14,29 +14,55 @@ class ContentModel extends UnifiedContent {
     super.releaseDate,
   });
 
-  factory ContentModel.fromJson(Map<String, dynamic>? json) {
-    if (json == null) return ContentModel.empty();
+  static String _asString(dynamic value, {String fallback = ''}) {
+    if (value == null) return fallback;
+    final result = value.toString();
+    return result == 'null' ? fallback : result;
+  }
+
+  static double _asDouble(dynamic value, {double fallback = 0.0}) {
+    if (value == null) return fallback;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString()) ?? fallback;
+  }
+
+  static List<String> _asStringList(dynamic value) {
+    if (value is List) {
+      return value
+          .where((item) => item != null)
+          .map((item) => item.toString())
+          .toList();
+    }
+    if (value == null) return const [];
+    return [value.toString()];
+  }
+
+  factory ContentModel.fromJson(dynamic json) {
+    if (json == null || json is! Map) return ContentModel.empty();
+    final map = Map<String, dynamic>.from(json);
 
     try {
       return ContentModel(
-        id: (json['_id'] ?? json['id'] ?? '').toString(),
-        externalId: (json['ext_id'] ?? json['external_id'] ?? '').toString(),
-        type: json['type']?.toString() ?? 'unknown',
-        title: json['title']?.toString() ?? 'No Title',
-        subtitle: json['subtitle']?.toString(),
-        description: json['description']?.toString(),
-        imageUrl: json['image_url']?.toString(),
-        rating: json['rating'] != null
-            ? double.tryParse(json['rating'].toString()) ?? 0.0
-            : 0.0,
-        genres: (json['genres'] is List)
-            ? List<String>.from(
-                (json['genres'] as List).map((g) => g.toString()),
-              )
-            : const [],
-        releaseDate: json['release_date']?.toString(),
+        id: _asString(map['_id'] ?? map['id']),
+        externalId: _asString(map['ext_id'] ?? map['external_id']),
+        type: _asString(map['type'], fallback: 'unknown'),
+        title: _asString(map['title'], fallback: 'No Title'),
+        subtitle: _asString(map['subtitle'], fallback: '').isEmpty
+            ? null
+            : _asString(map['subtitle']),
+        description: _asString(map['description'], fallback: '').isEmpty
+            ? null
+            : _asString(map['description']),
+        imageUrl: _asString(map['image_url'], fallback: '').isEmpty
+            ? null
+            : _asString(map['image_url']),
+        rating: _asDouble(map['rating']),
+        genres: _asStringList(map['genres']),
+        releaseDate: _asString(map['release_date'], fallback: '').isEmpty
+            ? null
+            : _asString(map['release_date']),
       );
-    } catch (e) {
+    } catch (_) {
       return ContentModel.empty();
     }
   }

@@ -2,8 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import init_db
-from app.api.routers import content, auth, user , actions
-from app.api.routers import recommendations
+from app.api.routers import actions, auth, content, recommendations, research, user
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
@@ -25,6 +24,7 @@ app.include_router(user.router)
 app.include_router(content.router)
 app.include_router(actions.router)
 app.include_router(recommendations.router)
+app.include_router(research.router)
 
 @app.get("/health")
 async def health_check():

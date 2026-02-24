@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../domain/repositories/content_repository.dart';
 import '../../../domain/entities/unified_content.dart';
 import 'home_state.dart';
@@ -11,9 +12,7 @@ class HomeCubit extends Cubit<HomeState> {
   final ContentRepository repository;
 
   HomeCubit(this.repository)
-    : super(HomeState(category: ContentCategory.music)) {
-    loadContent();
-  }
+    : super(HomeState(category: ContentCategory.music));
 
   void setCategory(ContentCategory category) {
     if (state.category == category) return;
@@ -33,9 +32,7 @@ class HomeCubit extends Cubit<HomeState> {
   }
 
   Future<void> loadContent() async {
-    if (state.isLoading == false && state.trending.isEmpty) {
-      emit(state.copyWith(isLoading: true));
-    }
+    emit(state.copyWith(isLoading: true, error: ''));
 
     try {
       final type = _getCategoryType();
@@ -64,21 +61,31 @@ class HomeCubit extends Cubit<HomeState> {
           error: '',
         ),
       );
-    } catch (e) {
-      emit(
-        state.copyWith(
-          isLoading: false,
-          error: "Ошибка загрузки: ${e.toString()}",
-        ),
+    } catch (e, st) {
+      AppLogger.error(
+        'Home content loading failed',
+        error: e,
+        stackTrace: st,
+        name: 'HomeCubit',
       );
+      emit(state.copyWith(error: "Ошибка загрузки: ${e.toString()}"));
+    } finally {
+      if (state.isLoading) {
+        emit(state.copyWith(isLoading: false));
+      }
     }
   }
 
   Future<void> toggleLike(UnifiedContent item) async {
     try {
       await repository.toggleLike(item);
-    } catch (e) {
-      print("[HOME_CUBIT] Ошибка при лайке: $e");
+    } catch (e, st) {
+      AppLogger.error(
+        'Toggle like failed in HomeCubit',
+        error: e,
+        stackTrace: st,
+        name: 'HomeCubit',
+      );
     }
   }
 }

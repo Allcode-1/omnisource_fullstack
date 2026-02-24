@@ -16,6 +16,9 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  static const Color _bgColor = Color(0xFF121212);
+  static const Color _surfaceColor = Color(0xFF1C1C1E);
+
   User? _user;
   bool _isLoading = true;
 
@@ -26,15 +29,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _fetchUserData() async {
+    User? loadedUser;
     try {
-      final user = await widget.userRepository.getMe();
-      setState(() {
-        _user = user;
-        _isLoading = false;
-      });
+      loadedUser = await widget.userRepository.getMe();
     } catch (e) {
       _showError("Failed to load profile");
     }
+
+    if (!mounted) return;
+    setState(() {
+      _user = loadedUser;
+      _isLoading = false;
+    });
   }
 
   void _showError(String message) {
@@ -48,15 +54,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: Color(0xFF121212),
+        backgroundColor: _bgColor,
         body: Center(
           child: CircularProgressIndicator(color: Colors.blueAccent),
         ),
       );
     }
 
+    if (_user == null) {
+      return Scaffold(
+        backgroundColor: _bgColor,
+        appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+        body: Center(
+          child: ElevatedButton(
+            onPressed: () {
+              setState(() => _isLoading = true);
+              _fetchUserData();
+            },
+            child: const Text("Retry loading profile"),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: _bgColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -230,7 +252,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: _surfaceColor,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(children: dividedChildren),
@@ -275,7 +297,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF1C1C1E),
+      backgroundColor: _surfaceColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -355,12 +377,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   onPressed: () async {
-                    final updated = await widget.userRepository.updateProfile(
-                      username: nameController.text,
-                      interests: tempInterests,
-                    );
-                    setState(() => _user = updated);
-                    if (mounted) Navigator.pop(context);
+                    try {
+                      final updated = await widget.userRepository.updateProfile(
+                        username: nameController.text,
+                        interests: tempInterests,
+                      );
+                      setState(() => _user = updated);
+                      if (mounted) Navigator.pop(context);
+                    } catch (_) {
+                      _showError("Failed to update profile");
+                    }
                   },
                   child: const Text(
                     "Save Changes",
@@ -409,7 +435,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1C1E),
+        backgroundColor: _surfaceColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text("Logout", style: TextStyle(color: Colors.white)),
         content: const Text(
@@ -443,7 +469,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1C1E),
+        backgroundColor: _surfaceColor,
         title: const Text("Delete Account?"),
         content: const Text(
           "This action is permanent.",
@@ -465,10 +491,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (confirm == true) {
-      await widget.userRepository.deleteAccount();
-      if (mounted) {
-        await context.read<AuthCubit>().logout();
-        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+      try {
+        await widget.userRepository.deleteAccount();
+        if (mounted) {
+          await context.read<AuthCubit>().logout();
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+        }
+      } catch (_) {
+        _showError("Failed to delete account");
       }
     }
   }
