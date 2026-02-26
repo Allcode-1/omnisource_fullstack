@@ -8,6 +8,7 @@ class User(Document):
     hashed_password: str
     interests: List[str] = []
     is_onboarding_completed: bool = False
+    ranking_variant: str = "hybrid_ml"
 
     class Settings:
         name = "users"

@@ -13,7 +13,7 @@ class PlaylistModel {
 
   factory PlaylistModel.fromJson(Map<String, dynamic> json) {
     return PlaylistModel(
-      id: json['_id'] ?? json['id'],
+      id: (json['_id'] ?? json['id'] ?? '').toString(),
       title: json['title'] ?? '',
       description: json['description'],
       items: List<String>.from(json['items'] ?? []),

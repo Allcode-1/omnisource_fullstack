@@ -8,6 +8,15 @@ class UserBase(BaseModel):
     email: EmailStr
     interests: List[str] = []
     is_onboarding_completed: bool = False
+    ranking_variant: str = "hybrid_ml"
+
+    @field_validator("username")
+    @classmethod
+    def username_not_blank(cls, v: str):
+        value = v.strip()
+        if not value:
+            raise ValueError("Username cannot be empty")
+        return value
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
@@ -28,7 +37,18 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     username: Optional[str] = None
     interests: Optional[List[str]] = None
+    ranking_variant: Optional[str] = None
     # avatar_url for future here
+
+    @field_validator("username")
+    @classmethod
+    def update_username_not_blank(cls, v: Optional[str]):
+        if v is None:
+            return v
+        value = v.strip()
+        if not value:
+            raise ValueError("Username cannot be empty")
+        return value
 
 class PyObjectId(str):
     @classmethod
@@ -61,3 +81,30 @@ class ForgotPassword(BaseModel):
 class ResetPassword(BaseModel):
     token: str
     new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def new_password_complexity(cls, v: str):
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one number")
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
+            raise ValueError("Password must contain at least one special character")
+        return v
+
+
+class RankingVariantUpdate(BaseModel):
+    ranking_variant: str
+
+    @field_validator("ranking_variant")
+    @classmethod
+    def validate_ranking_variant(cls, value: str):
+        allowed = {"content_only", "hybrid_ml"}
+        if value not in allowed:
+            raise ValueError(f"ranking_variant must be one of: {', '.join(sorted(allowed))}")
+        return value

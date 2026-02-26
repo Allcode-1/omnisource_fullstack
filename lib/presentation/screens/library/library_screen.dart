@@ -10,6 +10,8 @@ import '../../../domain/repositories/user_repository.dart';
 import '../profile/profile_screen.dart';
 import 'content_card.dart';
 import 'playlist_detail_screen.dart';
+import 'playlist_editor_screen.dart';
+import 'smart_library_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -47,7 +49,28 @@ class _LibraryScreenState extends State<LibraryScreen> {
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text("${items.length} items"),
-      trailing: const Icon(CupertinoIcons.right_chevron, size: 18),
+      trailing: isFavorites
+          ? const Icon(CupertinoIcons.right_chevron, size: 18)
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    if (playlistId == null) return;
+                    _showPlaylistActions(
+                      playlistId: playlistId,
+                      currentTitle: title,
+                      currentDescription: description,
+                    );
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Icon(CupertinoIcons.ellipsis_circle, size: 20),
+                  ),
+                ),
+                const Icon(CupertinoIcons.right_chevron, size: 18),
+              ],
+            ),
       onTap: () {
         Navigator.push(
           context,
@@ -87,13 +110,144 @@ class _LibraryScreenState extends State<LibraryScreen> {
           CupertinoDialogAction(
             child: const Text("Create"),
             onPressed: () {
-              if (controller.text.isNotEmpty) {
-                context.read<LibraryCubit>().createPlaylist(controller.text);
+              final title = controller.text.trim();
+              if (title.isNotEmpty) {
+                context.read<LibraryCubit>().createPlaylist(title);
                 Navigator.pop(ctx);
               }
             },
           ),
         ],
+      ),
+    );
+  }
+
+  void _showPlaylistActions({
+    required String playlistId,
+    required String currentTitle,
+    String? currentDescription,
+  }) {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: Text(currentTitle),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showEditPlaylistDialog(
+                playlistId: playlistId,
+                currentTitle: currentTitle,
+                currentDescription: currentDescription,
+              );
+            },
+            child: const Text('Edit Playlist'),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.read<LibraryCubit>().deletePlaylist(playlistId);
+            },
+            child: const Text('Delete Playlist'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+  }
+
+  void _showEditPlaylistDialog({
+    required String playlistId,
+    required String currentTitle,
+    String? currentDescription,
+  }) {
+    final titleController = TextEditingController(text: currentTitle);
+    final descriptionController = TextEditingController(
+      text: currentDescription ?? '',
+    );
+
+    showCupertinoDialog(
+      context: context,
+      builder: (ctx) => CupertinoAlertDialog(
+        title: const Text("Edit Playlist"),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CupertinoTextField(
+                controller: titleController,
+                placeholder: "Title",
+                autofocus: true,
+              ),
+              const SizedBox(height: 10),
+              CupertinoTextField(
+                controller: descriptionController,
+                placeholder: "Description (optional)",
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text("Cancel"),
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          CupertinoDialogAction(
+            child: const Text("Save"),
+            onPressed: () {
+              final title = titleController.text.trim();
+              if (title.isEmpty) return;
+              context.read<LibraryCubit>().updatePlaylist(
+                playlistId,
+                title: title,
+                description: descriptionController.text.trim().isEmpty
+                    ? null
+                    : descriptionController.text.trim(),
+              );
+              Navigator.pop(ctx);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openLibraryTools() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('Library Tools'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                CupertinoPageRoute(builder: (_) => const SmartLibraryScreen()),
+              );
+            },
+            child: const Text('Smart Library'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                CupertinoPageRoute(builder: (_) => const PlaylistEditorScreen()),
+              );
+            },
+            child: const Text('Playlist Editor'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
       ),
     );
   }
@@ -109,6 +263,44 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 physics: const BouncingScrollPhysics(),
                 slivers: [
                   const SliverToBoxAdapter(child: SizedBox(height: 110)),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _LibraryToolButton(
+                              title: 'Smart Library',
+                              icon: CupertinoIcons.chart_bar_alt_fill,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  CupertinoPageRoute(
+                                    builder: (_) => const SmartLibraryScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _LibraryToolButton(
+                              title: 'Playlist Editor',
+                              icon: CupertinoIcons.square_pencil,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  CupertinoPageRoute(
+                                    builder: (_) => const PlaylistEditorScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
 
                   if (state is LibraryLoading)
                     const SliverFillRemaining(
@@ -141,6 +333,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             ),
                           ),
                         ]),
+                      ),
+                    )
+                  else if (state is LibraryError)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: Text(
+                          state.message,
+                          style: const TextStyle(color: Colors.redAccent),
+                        ),
                       ),
                     ),
 
@@ -196,6 +398,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
         final username = authState is AuthAuthenticated
             ? authState.user.username
             : "U";
+        final safeLetter = username.trim().isNotEmpty
+            ? username.trim().substring(0, 1).toUpperCase()
+            : "U";
         return Container(
           padding: const EdgeInsets.fromLTRB(16, 50, 16, 10),
           color: Theme.of(context).scaffoldBackgroundColor,
@@ -211,6 +416,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 onPressed: _showCreatePlaylistDialog,
                 child: const Icon(CupertinoIcons.plus_circle, size: 28),
               ),
+              const SizedBox(width: 10),
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: _openLibraryTools,
+                child: const Icon(CupertinoIcons.slider_horizontal_3, size: 24),
+              ),
               const SizedBox(width: 15),
               GestureDetector(
                 onTap: () => Navigator.push(
@@ -225,7 +436,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   radius: 18,
                   backgroundColor: Theme.of(context).primaryColor,
                   child: Text(
-                    username[0].toUpperCase(),
+                    safeLetter,
                     style: const TextStyle(color: Colors.white),
                   ),
                 ),
@@ -234,6 +445,45 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _LibraryToolButton extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _LibraryToolButton({
+    required this.title,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1C1C1E),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

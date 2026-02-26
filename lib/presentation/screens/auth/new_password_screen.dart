@@ -136,12 +136,22 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                   child: ElevatedButton(
                     onPressed: () async {
                       if (_formKey.currentState!.validate()) {
-                        await context.read<AuthCubit>().resetPassword(
-                          _tokenController.text,
-                          _passController.text,
-                        );
-                        if (mounted) {
+                        final success = await context
+                            .read<AuthCubit>()
+                            .resetPassword(
+                              _tokenController.text,
+                              _passController.text,
+                            );
+                        if (!mounted) return;
+                        if (success) {
                           Navigator.popUntil(context, (route) => route.isFirst);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Failed to reset password'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
                         }
                       }
                     },

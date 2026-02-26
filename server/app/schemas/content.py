@@ -6,7 +6,7 @@ class UnifiedContent(BaseModel):
     external_id: str = Field(alias="ext_id") 
     type: str          # 'movie', 'book', or 'music'
     title: str
-    subtitle: str      
+    subtitle: Optional[str] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
     rating: Optional[float] = 0.0
@@ -15,3 +15,8 @@ class UnifiedContent(BaseModel):
 
     class Config:
         populate_by_name = True
+
+
+class PlaylistUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None

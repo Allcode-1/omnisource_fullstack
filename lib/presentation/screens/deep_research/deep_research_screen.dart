@@ -1,10 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../../core/utils/app_logger.dart';
 import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/repositories/content_repository.dart';
+import '../../bloc/auth/auth_cubit.dart';
+import '../../bloc/auth/auth_state.dart';
 import '../search/search_grid_card.dart';
 
 class DeepResearchScreen extends StatefulWidget {
@@ -15,17 +18,29 @@ class DeepResearchScreen extends StatefulWidget {
 }
 
 class _DeepResearchScreenState extends State<DeepResearchScreen> {
-  List<String> _tags = const [];
+  final TextEditingController _tagSearchController = TextEditingController();
+
+  List<String> _allTags = const [];
+  List<String> _filteredTags = const [];
+  final Set<String> _selectedTags = {};
+
   List<UnifiedContent> _results = const [];
+
   bool _isLoadingTags = true;
   bool _isLoadingResults = false;
-  String _selectedTag = '';
   String _error = '';
+  String _activeType = 'all';
 
   @override
   void initState() {
     super.initState();
     _loadTags();
+  }
+
+  @override
+  void dispose() {
+    _tagSearchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadTags() async {
@@ -36,8 +51,20 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
 
     try {
       final tags = await context.read<AuthRepository>().getAvailableTags();
+      final sorted = [...tags]..sort((a, b) => a.compareTo(b));
+
       if (!mounted) return;
-      setState(() => _tags = tags);
+      setState(() {
+        _allTags = sorted;
+        _filteredTags = sorted;
+      });
+
+      final authState = context.read<AuthCubit>().state;
+      if (authState is AuthAuthenticated &&
+          authState.user.interests.isNotEmpty) {
+        _selectedTags.addAll(authState.user.interests.take(3));
+        await _runDeepResearch();
+      }
     } catch (e, st) {
       AppLogger.error(
         'Failed to load research tags',
@@ -54,17 +81,60 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
     }
   }
 
-  Future<void> _runDeepResearch(String tag) async {
+  void _onTagQueryChanged(String value) {
+    final query = value.trim().toLowerCase();
     setState(() {
-      _selectedTag = tag;
+      _filteredTags = query.isEmpty
+          ? _allTags
+          : _allTags.where((tag) => tag.toLowerCase().contains(query)).toList();
+    });
+  }
+
+  Future<void> _runDeepResearch() async {
+    if (_selectedTags.isEmpty) {
+      setState(() {
+        _results = const [];
+        _error = '';
+      });
+      return;
+    }
+
+    setState(() {
       _isLoadingResults = true;
       _error = '';
     });
 
     try {
-      final data = await context.read<ContentRepository>().getDeepResearch(tag);
+      final repository = context.read<ContentRepository>();
+      final type = _activeType == 'all' ? null : _activeType;
+
+      final responses = await Future.wait(
+        _selectedTags.map((tag) => repository.getDeepResearch(tag, type: type)),
+      );
+
+      final merged = <String, UnifiedContent>{};
+      final scoreById = <String, int>{};
+
+      for (final list in responses) {
+        for (final item in list) {
+          final id = item.externalId;
+          if (id.isEmpty) continue;
+
+          merged.putIfAbsent(id, () => item);
+          scoreById[id] = (scoreById[id] ?? 0) + 1;
+        }
+      }
+
+      final items = merged.values.toList();
+      items.sort((a, b) {
+        final scoreA = scoreById[a.externalId] ?? 0;
+        final scoreB = scoreById[b.externalId] ?? 0;
+        if (scoreA != scoreB) return scoreB.compareTo(scoreA);
+        return b.rating.compareTo(a.rating);
+      });
+
       if (!mounted) return;
-      setState(() => _results = data);
+      setState(() => _results = items);
     } catch (e, st) {
       AppLogger.error(
         'Deep research request failed',
@@ -81,19 +151,36 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
     }
   }
 
+  void _toggleTag(String tag) {
+    setState(() {
+      if (_selectedTags.contains(tag)) {
+        _selectedTags.remove(tag);
+      } else {
+        _selectedTags.add(tag);
+      }
+    });
+    _runDeepResearch();
+  }
+
+  void _setType(String type) {
+    if (_activeType == type) return;
+    setState(() => _activeType = type);
+    _runDeepResearch();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          const SliverToBoxAdapter(child: SizedBox(height: 62)),
+          const SliverToBoxAdapter(child: SizedBox(height: 60)),
           const SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Deep Research',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+                'Discover',
+                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
               ),
             ),
           ),
@@ -101,7 +188,7 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
             child: Padding(
               padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Text(
-                'Pick an interest and get a focused feed',
+                'Pick one or more tags and explore a focused feed',
                 style: TextStyle(color: Colors.white54, fontSize: 14),
               ),
             ),
@@ -110,10 +197,31 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildSearchBar(),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 14)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildTypeFilters(),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 14)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildSelectedTags(),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 14)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: _buildTagCloud(),
             ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 20)),
+          const SliverToBoxAdapter(child: SizedBox(height: 18)),
           if (_isLoadingResults)
             const SliverFillRemaining(
               child: Center(child: CupertinoActivityIndicator()),
@@ -125,12 +233,12 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
                 child: Text(_error, style: const TextStyle(color: Colors.red)),
               ),
             )
-          else if (_selectedTag.isEmpty)
+          else if (_selectedTags.isEmpty)
             const SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
                 child: Text(
-                  'Select a tag to start',
+                  'Select tags to start discovering',
                   style: TextStyle(color: Colors.white38),
                 ),
               ),
@@ -140,7 +248,7 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
               hasScrollBody: false,
               child: Center(
                 child: Text(
-                  'No focused results for "$_selectedTag"',
+                  'No results for selected tags',
                   style: const TextStyle(color: Colors.white38),
                 ),
               ),
@@ -167,20 +275,133 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
     );
   }
 
+  Widget _buildSearchBar() {
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: CupertinoSearchTextField(
+        controller: _tagSearchController,
+        backgroundColor: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(14),
+        itemColor: Colors.white54,
+        style: const TextStyle(color: Colors.white, fontSize: 14),
+        placeholderStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+        placeholder: 'Search tags',
+        onChanged: _onTagQueryChanged,
+        onSuffixTap: () {
+          _tagSearchController.clear();
+          _onTagQueryChanged('');
+        },
+      ),
+    );
+  }
+
+  Widget _buildTypeFilters() {
+    final filters = const [
+      ('All', 'all'),
+      ('Movies', 'movie'),
+      ('Music', 'music'),
+      ('Books', 'book'),
+    ];
+
+    return SizedBox(
+      height: 36,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: filters.length,
+        itemBuilder: (context, index) {
+          final label = filters[index].$1;
+          final value = filters[index].$2;
+          final selected = value == _activeType;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () => _setType(value),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: selected ? Colors.white : const Color(0xFF1C1C1E),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: selected ? Colors.black : Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSelectedTags() {
+    if (_selectedTags.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _selectedTags.map((tag) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0A84FF).withOpacity(0.2),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: const Color(0xFF0A84FF).withOpacity(0.45),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                tag,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () => _toggleTag(tag),
+                child: const Icon(
+                  CupertinoIcons.xmark_circle_fill,
+                  size: 16,
+                  color: Colors.white70,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _buildTagCloud() {
     if (_isLoadingTags) {
       return const SizedBox(
-        height: 50,
+        height: 56,
         child: Center(child: CupertinoActivityIndicator()),
       );
     }
 
-    if (_tags.isEmpty) {
+    if (_filteredTags.isEmpty) {
       return const SizedBox(
-        height: 50,
+        height: 56,
         child: Center(
           child: Text(
-            'No tags available',
+            'No matching tags',
             style: TextStyle(color: Colors.white38),
           ),
         ),
@@ -188,30 +409,24 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
     }
 
     return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: _tags.map((tag) {
-        final isSelected = _selectedTag == tag;
+      spacing: 8,
+      runSpacing: 8,
+      children: _filteredTags.map((tag) {
+        final selected = _selectedTags.contains(tag);
         return GestureDetector(
-          onTap: () => _runDeepResearch(tag),
+          onTap: () => _toggleTag(tag),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? const Color(0xFF0984E3)
+              color: selected
+                  ? const Color(0xFF0A84FF)
                   : const Color(0xFF1C1C1E),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: isSelected ? Colors.transparent : Colors.white12,
+                color: selected ? Colors.transparent : Colors.white12,
               ),
             ),
-            child: Text(
-              tag,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
+            child: Text(tag, style: const TextStyle(color: Colors.white)),
           ),
         );
       }).toList(),

@@ -101,11 +101,12 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  Future<void> forgotPassword(String email) async {
+  Future<bool> forgotPassword(String email) async {
     emit(AuthLoading());
     try {
       await authRepository.forgotPassword(email);
       emit(AuthInitial());
+      return true;
     } catch (e, st) {
       AppLogger.error(
         'Forgot password failed',
@@ -114,14 +115,16 @@ class AuthCubit extends Cubit<AuthState> {
         name: 'AuthCubit',
       );
       emit(AuthError("Failed to send reset email"));
+      return false;
     }
   }
 
-  Future<void> resetPassword(String token, String newPassword) async {
+  Future<bool> resetPassword(String token, String newPassword) async {
     emit(AuthLoading());
     try {
       await authRepository.resetPassword(token, newPassword);
       emit(AuthInitial());
+      return true;
     } catch (e, st) {
       AppLogger.error(
         'Reset password failed',
@@ -130,6 +133,7 @@ class AuthCubit extends Cubit<AuthState> {
         name: 'AuthCubit',
       );
       emit(AuthError("Invalid token or password reset failed"));
+      return false;
     }
   }
 

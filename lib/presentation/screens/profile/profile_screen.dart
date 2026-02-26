@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -5,6 +6,7 @@ import '../../../domain/entities/user.dart';
 import '../../../domain/repositories/user_repository.dart';
 import '../../../presentation/bloc/auth/auth_cubit.dart';
 import '../auth/forgot_password_screen.dart';
+import '../settings/settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final UserRepository userRepository;
@@ -48,6 +50,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _firstLetter(String value, {String fallback = "U"}) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return fallback;
+    return trimmed.substring(0, 1).toUpperCase();
   }
 
   @override
@@ -99,6 +107,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(CupertinoIcons.settings_solid, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -114,7 +133,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     radius: 50,
                     backgroundColor: Colors.blueAccent.withOpacity(0.1),
                     child: Text(
-                      _user!.username[0].toUpperCase(),
+                      _firstLetter(_user!.username),
                       style: GoogleFonts.inter(
                         fontSize: 32,
                         fontWeight: FontWeight.w300,
@@ -377,9 +396,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   onPressed: () async {
+                    final trimmedName = nameController.text.trim();
+                    if (trimmedName.isEmpty) {
+                      _showError("Username cannot be empty");
+                      return;
+                    }
                     try {
                       final updated = await widget.userRepository.updateProfile(
-                        username: nameController.text,
+                        username: trimmedName,
                         interests: tempInterests,
                       );
                       setState(() => _user = updated);
@@ -460,7 +484,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirm == true && mounted) {
       await context.read<AuthCubit>().logout();
-      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+      if (!mounted) return;
+      Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 
@@ -495,7 +520,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await widget.userRepository.deleteAccount();
         if (mounted) {
           await context.read<AuthCubit>().logout();
-          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+          if (!mounted) return;
+          Navigator.of(context).popUntil((route) => route.isFirst);
         }
       } catch (_) {
         _showError("Failed to delete account");

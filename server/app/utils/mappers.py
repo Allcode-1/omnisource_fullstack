@@ -2,6 +2,14 @@ from app.schemas.content import UnifiedContent
 
 class ContentMapper:
     @staticmethod
+    def _first_image(images):
+        if isinstance(images, list) and images:
+            first = images[0]
+            if isinstance(first, dict):
+                return first.get("url")
+        return None
+
+    @staticmethod
     def map_tmdb(movie: dict) -> UnifiedContent:
         return UnifiedContent(
             id=f"movie_{movie.get('id')}",
@@ -19,14 +27,17 @@ class ContentMapper:
     @staticmethod
     def map_google_books(book: dict) -> UnifiedContent:
         info = book.get('volumeInfo', {})
+        thumbnail = info.get('imageLinks', {}).get('thumbnail')
+        if isinstance(thumbnail, str):
+            thumbnail = thumbnail.replace("http://", "https://")
         return UnifiedContent(
             id=f"book_{book.get('id')}",
-            external_id=book.get('id'),
+            external_id=str(book.get('id') or ""),
             type="book",
             title=info.get('title', ''),
             subtitle=", ".join(info.get('authors', [])) if info.get('authors') else "Unknown author",
             description=info.get('description'),
-            image_url=info.get('imageLinks', {}).get('thumbnail'),
+            image_url=thumbnail,
             rating=info.get('averageRating', 0.0),
             genres=info.get('categories', []),
             release_date=info.get('publishedDate')
@@ -34,15 +45,16 @@ class ContentMapper:
 
     @staticmethod
     def map_spotify(track: dict) -> UnifiedContent:
+        album = track.get("album", {})
         return UnifiedContent(
             id=f"music_{track.get('id')}",
-            external_id=track.get('id'),
+            external_id=str(track.get('id') or ""),
             type="music",
             title=track.get('name', ''),
             subtitle=", ".join([a['name'] for a in track.get('artists', [])]),
-            description=f"Album: {track.get('album', {}).get('name')}",
-            image_url=track.get('album', {}).get('images', [{}])[0].get('url'),
+            description=f"Album: {album.get('name', 'Unknown')}",
+            image_url=ContentMapper._first_image(album.get("images")),
             rating=track.get('popularity', 0) / 10, # turn to 10grade rating
             genres=[], 
-            release_date=track.get('album', {}).get('release_date')
+            release_date=album.get('release_date')
         )

@@ -1,14 +1,16 @@
 from beanie import Document, Indexed
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Dict, Any
 from datetime import datetime
 from pydantic import Field
 
 class Interaction(Document):
-    user_id: str
-    ext_id: str  # link of content (external_id)
-    type: str    # like, view, playlist_add
+    user_id: Annotated[str, Indexed()]
+    ext_id: Annotated[str, Indexed()]  # link of content (external_id)
+    content_type: Optional[str] = None
+    type: Annotated[str, Indexed()]    # like, view, playlist_add
     weight: float = 1.0 # for ml: weight of action
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    meta: Dict[str, Any] = Field(default_factory=dict)
+    created_at: Annotated[datetime, Indexed()] = Field(default_factory=datetime.utcnow)
 
     class Settings:
         name = "interactions"

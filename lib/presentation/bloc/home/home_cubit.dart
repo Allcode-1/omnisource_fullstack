@@ -10,6 +10,7 @@ enum ContentCategory { music, movie, book }
 
 class HomeCubit extends Cubit<HomeState> {
   final ContentRepository repository;
+  int _loadToken = 0;
 
   HomeCubit(this.repository)
     : super(HomeState(category: ContentCategory.music));
@@ -32,6 +33,7 @@ class HomeCubit extends Cubit<HomeState> {
   }
 
   Future<void> loadContent() async {
+    final token = ++_loadToken;
     emit(state.copyWith(isLoading: true, error: ''));
 
     try {
@@ -46,6 +48,7 @@ class HomeCubit extends Cubit<HomeState> {
       final trendingList = results[0] as List<UnifiedContent>;
       final recsList = results[1] as List<UnifiedContent>;
       final homeDataMap = results[2] as Map<String, List<UnifiedContent>>;
+      if (isClosed || token != _loadToken) return;
 
       final finalTrending =
           homeDataMap['Trending Now'] ??
@@ -68,9 +71,10 @@ class HomeCubit extends Cubit<HomeState> {
         stackTrace: st,
         name: 'HomeCubit',
       );
+      if (isClosed || token != _loadToken) return;
       emit(state.copyWith(error: "Ошибка загрузки: ${e.toString()}"));
     } finally {
-      if (state.isLoading) {
+      if (!isClosed && token == _loadToken && state.isLoading) {
         emit(state.copyWith(isLoading: false));
       }
     }

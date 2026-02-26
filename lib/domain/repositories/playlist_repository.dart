@@ -4,6 +4,11 @@ import '../../data/models/playlist_model.dart';
 abstract class PlaylistRepository {
   Future<List<PlaylistModel>> getPlaylists();
   Future<PlaylistModel> createPlaylist(String title, {String? description});
+  Future<PlaylistModel> updatePlaylist(
+    String id, {
+    String? title,
+    String? description,
+  });
   Future<void> deletePlaylist(String id);
   Future<void> addToPlaylist(String playlistId, UnifiedContent content);
   Future<void> removeFromPlaylist(String playlistId, String externalId);

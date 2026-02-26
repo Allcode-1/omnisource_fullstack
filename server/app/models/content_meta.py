@@ -5,7 +5,7 @@ from pydantic import Field
 
 class ContentMetadata(Document):
     ext_id: Annotated[str, Indexed(unique=True)]
-    type: str  # movie, music, book
+    type: Annotated[str, Indexed()]  # movie, music, book
     title: str
     subtitle: Optional[str] = None
     image_url: Optional[str] = None
@@ -18,7 +18,7 @@ class ContentMetadata(Document):
         name = "content_metadata"
 
 class Playlist(Document):
-    user_id: str
+    user_id: Annotated[str, Indexed()]
     title: str
     description: Optional[str] = None
     items: List[str] = []  

@@ -8,4 +8,4 @@ class GoogleBooksClient(BaseIntegration):
 
     async def search_books(self, query: str):
         params = {"q": query, "key": self.api_key, "maxResults": 10, "langRestrict": "en"}
-        return await self._get("/volumes", params=params)
+        return await self._get("/volumes", params=params) or {"items": []}

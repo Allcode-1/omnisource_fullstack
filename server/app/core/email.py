@@ -2,6 +2,9 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from app.core.config import settings
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 def send_reset_password_email(email_to: str, token: str):
     subject = f"Password reset for {settings.PROJECT_NAME}"
@@ -99,4 +102,4 @@ def send_reset_password_email(email_to: str, token: str):
             server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
             server.sendmail(settings.EMAILS_FROM_EMAIL, email_to, message.as_string())
     except Exception as e:
-        print(f"Error sending email: {e}")
+        logger.exception("Error sending reset email to %s: %s", email_to, e)

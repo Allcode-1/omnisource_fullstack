@@ -77,14 +77,22 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   child: ElevatedButton(
                     onPressed: () async {
                       if (_formKey.currentState!.validate()) {
-                        await context.read<AuthCubit>().forgotPassword(
-                          _emailController.text,
-                        );
-                        if (mounted) {
+                        final success = await context
+                            .read<AuthCubit>()
+                            .forgotPassword(_emailController.text);
+                        if (!mounted) return;
+                        if (success) {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => const NewPasswordScreen(),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Failed to send reset email'),
+                              backgroundColor: Colors.redAccent,
                             ),
                           );
                         }

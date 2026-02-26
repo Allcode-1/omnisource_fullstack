@@ -2,8 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../domain/entities/unified_content.dart';
+import '../../../domain/repositories/analytics_repository.dart';
 import '../../bloc/library/library_cubit.dart';
 import '../../bloc/library/library_state.dart';
+import '../../widgets/content_quick_actions.dart';
 import './detail_screen.dart';
 
 class ContentCard extends StatelessWidget {
@@ -24,12 +26,29 @@ class ContentCard extends StatelessWidget {
         }
 
         return GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            CupertinoPageRoute(
-              builder: (context) => DetailScreen(content: item),
-            ),
-          ),
+          onLongPress: () =>
+              ContentQuickActions.show(context, item, source: 'home'),
+          onTap: () {
+            context.read<AnalyticsRepository>().trackEvent(
+              type: 'view',
+              extId: item.externalId,
+              contentType: item.type,
+              meta: {
+                'source': 'home_content_card',
+                'title': item.title,
+                'image_url': item.imageUrl,
+                'rating': item.rating,
+                'release_date': item.releaseDate,
+                'genres': item.genres,
+              },
+            );
+            Navigator.push(
+              context,
+              CupertinoPageRoute(
+                builder: (context) => DetailScreen(content: item),
+              ),
+            );
+          },
           child: Container(
             width: 145,
             margin: const EdgeInsets.only(right: 15),
@@ -39,6 +58,29 @@ class ContentCard extends StatelessWidget {
                 Stack(
                   children: [
                     _buildImage(),
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: GestureDetector(
+                        onTap: () => ContentQuickActions.show(
+                          context,
+                          item,
+                          source: 'home',
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(
+                            color: Colors.black38,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            CupertinoIcons.ellipsis,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ),
                     Positioned(
                       top: 8,
                       right: 8,
@@ -81,7 +123,7 @@ class ContentCard extends StatelessWidget {
                   item.subtitle ?? '',
                   maxLines: 1,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white.withOpacity(0.5),
+                    color: Colors.white.withValues(alpha: 0.5),
                   ),
                 ),
               ],
@@ -100,7 +142,7 @@ class ContentCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -112,7 +154,7 @@ class ContentCard extends StatelessWidget {
           item.imageUrl ?? '',
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) => Container(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.05),
             child: Icon(
               _getIconData(item.type),
               color: Colors.white24,

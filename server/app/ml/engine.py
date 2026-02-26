@@ -1,18 +1,27 @@
+import asyncio
 from typing import Optional, List
 from app.models.interaction import Interaction
 from app.models.content_meta import ContentMetadata
 from app.ml.similarity import SimilarityManager
-from app.ml.vectorizer import vectorizer
+from app.ml.vectorizer import get_vectorizer
 from app.schemas.content import UnifiedContent
 from app.services.content_service import ContentService
 from beanie.operators import In
-import logging
 import numpy as np
+from app.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class RecommenderEngine:
+    EVENT_WEIGHTS = {
+        "view": 0.2,
+        "open_detail": 0.5,
+        "dwell_time": 0.3,
+        "like": 1.0,
+        "playlist_add": 0.8,
+    }
+
     def __init__(self):
         self.similarity = SimilarityManager()
         self.content_service = ContentService()
@@ -45,67 +54,94 @@ class RecommenderEngine:
             limit,
         )
 
-        # 1. get all likes of current user
-        user_likes = await Interaction.find(
+        interactions = await Interaction.find(
             Interaction.user_id == user_id,
-            Interaction.type == "like"
+            In(Interaction.type, list(self.EVENT_WEIGHTS.keys())),
         ).to_list()
 
-        if not user_likes:
-            # if no likes return available content (optionally filtered by type)
+        if not interactions:
             query = ContentMetadata.find()
             if content_type and content_type != "all":
                 query = query.find(ContentMetadata.type == content_type)
 
             fallback = await query.limit(limit).to_list()
             logger.info(
-                "No likes found for user=%s. Returning fallback_count=%s",
+                "No interactions found for user=%s. Returning fallback_count=%s",
                 user_id,
                 len(fallback),
             )
             return fallback
 
-        # 2. get vectors of liked content
-        liked_ids = [i.ext_id for i in user_likes]
-        liked_content = await ContentMetadata.find(In(ContentMetadata.ext_id, liked_ids)).to_list()
+        interaction_weight_by_id: dict[str, float] = {}
+        liked_ids = set()
+        for interaction in interactions:
+            if not interaction.ext_id or interaction.ext_id == "app":
+                continue
+            base_weight = self.EVENT_WEIGHTS.get(interaction.type, 0.1)
+            final_weight = float(interaction.weight or base_weight)
+            interaction_weight_by_id[interaction.ext_id] = (
+                interaction_weight_by_id.get(interaction.ext_id, 0.0) + final_weight
+            )
+            if interaction.type == "like":
+                liked_ids.add(interaction.ext_id)
 
-        user_vectors = [c.features_vector for c in liked_content if c.features_vector]
-
-        if not user_vectors:
-            logger.info("No vectors for liked content. user_id=%s", user_id)
+        if not interaction_weight_by_id:
+            logger.info("No vectorizable interactions for user=%s", user_id)
             return []
 
-        # 3. create user profile vector by averaging liked content vectors
-        user_profile_vector = np.mean(user_vectors, axis=0).tolist()
+        interaction_docs = await ContentMetadata.find(
+            In(ContentMetadata.ext_id, list(interaction_weight_by_id.keys()))
+        ).to_list()
 
-        # 4. search for content that user didnt liked yet
+        weighted_vectors = []
+        total_weight = 0.0
+        for doc in interaction_docs:
+            if not doc.features_vector:
+                continue
+            weight = interaction_weight_by_id.get(doc.ext_id, 0.0)
+            if weight <= 0:
+                continue
+            weighted_vectors.append(np.array(doc.features_vector) * weight)
+            total_weight += weight
+
+        if not weighted_vectors or total_weight == 0:
+            logger.info("No vectors in interaction docs for user=%s", user_id)
+            return []
+
+        user_profile_vector = (np.sum(weighted_vectors, axis=0) / total_weight).tolist()
+
+        # Exclude content already interacted with heavily.
         candidates_query = ContentMetadata.find(
-            {"ext_id": {"$nin": liked_ids}} 
+            {"ext_id": {"$nin": list(interaction_weight_by_id.keys())}}
         )
         if content_type and content_type != "all":
             candidates_query = candidates_query.find(ContentMetadata.type == content_type)
         candidates = await candidates_query.to_list()
 
-        # 5. score similarity between user profile and possible content
         scored_results = []
         for item in candidates:
             if not item.features_vector:
                 continue
-            
-            score = self.similarity.calculate_cosine_similarity(user_profile_vector, item.features_vector)
-            scored_results.append((score, item))
 
-        # sort by score from top to bottom and return top results
+            similarity_score = self.similarity.calculate_cosine_similarity(
+                user_profile_vector,
+                item.features_vector,
+            )
+            rating_score = max(0.0, min((item.rating or 0.0) / 10.0, 1.0))
+            hybrid_score = similarity_score * 0.85 + rating_score * 0.15
+            scored_results.append((hybrid_score, item))
+
         scored_results.sort(key=lambda x: x[0], reverse=True)
 
         logger.info(
-            "ML filtering completed: user_id=%s candidates=%s scored=%s returned=%s",
+            "ML filtering completed: user_id=%s events=%s candidates=%s scored=%s returned=%s",
             user_id,
+            len(interactions),
             len(candidates),
             len(scored_results),
             min(limit, len(scored_results)),
         )
-        return [item for score, item in scored_results[:limit]]
+        return [item for _, item in scored_results[:limit]]
 
     async def get_deep_research(
         self,
@@ -120,7 +156,7 @@ class RecommenderEngine:
             limit,
         )
 
-        tag_vector = vectorizer.get_embedding(tag)
+        tag_vector = await asyncio.to_thread(get_vectorizer().get_embedding, tag)
         if not tag_vector:
             logger.warning("Tag vector is empty for tag=%s. Using discovery fallback.", tag)
             fallback = await self.content_service.get_discovery(tag)
@@ -160,3 +196,6 @@ class RecommenderEngine:
             len(result),
         )
         return result
+
+    async def close(self) -> None:
+        await self.content_service.close()

@@ -2,10 +2,17 @@ from fastapi import APIRouter, Depends, status
 from app.models.user import User
 from app.models.interaction import Interaction
 from app.models.content_meta import Playlist
-from app.schemas.user import UserRead, UserUpdate, OnboardingComplete
+from app.schemas.user import (
+    OnboardingComplete,
+    RankingVariantUpdate,
+    UserRead,
+    UserUpdate,
+)
 from app.api.deps import get_current_user
+from app.core.logging import get_logger
 
 router = APIRouter(prefix="/user", tags=["user"])
+logger = get_logger(__name__)
 
 @router.get("/me", response_model=UserRead)
 async def get_me(current_user: User = Depends(get_current_user)):
@@ -18,6 +25,7 @@ async def update_user(data: UserUpdate, current_user: User = Depends(get_current
         setattr(current_user, key, value)
     
     await current_user.save()
+    logger.info("User updated id=%s fields=%s", current_user.id, list(update_dict.keys()))
     return current_user
 
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
@@ -30,6 +38,7 @@ async def delete_user(current_user: User = Depends(get_current_user)):
     
     # 3. delete user itself
     await current_user.delete()
+    logger.info("User deleted id=%s", current_user.id)
     
     return None
 
@@ -41,9 +50,30 @@ async def complete_onboarding(
     current_user.interests = data.interests
     current_user.is_onboarding_completed = True
     await current_user.save()
+    logger.info("Onboarding completed user=%s interests=%s", current_user.id, len(data.interests))
     return current_user
 
 @router.get("/tags")
 async def get_available_tags():
     from app.core.tags import MASTER_TAGS 
     return list(MASTER_TAGS.keys())
+
+
+@router.get("/ranking-variant")
+async def get_ranking_variant(current_user: User = Depends(get_current_user)):
+    return {"ranking_variant": current_user.ranking_variant}
+
+
+@router.patch("/ranking-variant")
+async def update_ranking_variant(
+    payload: RankingVariantUpdate,
+    current_user: User = Depends(get_current_user),
+):
+    current_user.ranking_variant = payload.ranking_variant
+    await current_user.save()
+    logger.info(
+        "Ranking variant updated user=%s variant=%s",
+        current_user.id,
+        payload.ranking_variant,
+    )
+    return {"ranking_variant": current_user.ranking_variant}

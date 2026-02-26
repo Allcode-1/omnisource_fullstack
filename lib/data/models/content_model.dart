@@ -1,4 +1,5 @@
 import '../../domain/entities/unified_content.dart';
+import '../../core/constants/api_constants.dart';
 
 class ContentModel extends UnifiedContent {
   ContentModel({
@@ -37,6 +38,12 @@ class ContentModel extends UnifiedContent {
     return [value.toString()];
   }
 
+  static String? _normalizeImageUrl(dynamic value) {
+    final raw = _asString(value, fallback: '');
+    if (raw.isEmpty) return null;
+    return ApiConstants.resolveImageUrl(raw);
+  }
+
   factory ContentModel.fromJson(dynamic json) {
     if (json == null || json is! Map) return ContentModel.empty();
     final map = Map<String, dynamic>.from(json);
@@ -53,9 +60,7 @@ class ContentModel extends UnifiedContent {
         description: _asString(map['description'], fallback: '').isEmpty
             ? null
             : _asString(map['description']),
-        imageUrl: _asString(map['image_url'], fallback: '').isEmpty
-            ? null
-            : _asString(map['image_url']),
+        imageUrl: _normalizeImageUrl(map['image_url']),
         rating: _asDouble(map['rating']),
         genres: _asStringList(map['genres']),
         releaseDate: _asString(map['release_date'], fallback: '').isEmpty

@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/utils/app_logger.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -19,7 +20,7 @@ class AuthRepositoryImpl implements AuthRepository {
         name: 'AuthRepository',
       );
       final response = await _dio.post(
-        '/auth/login',
+        ApiConstants.login,
         data: {'username': email, 'password': password},
         options: Options(contentType: Headers.formUrlEncodedContentType),
       );

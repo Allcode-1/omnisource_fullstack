@@ -54,6 +54,32 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
   }
 
   @override
+  Future<PlaylistModel> updatePlaylist(
+    String id, {
+    String? title,
+    String? description,
+  }) async {
+    try {
+      final response = await _dio.patch(
+        '${ApiConstants.playlists}/$id',
+        data: {
+          if (title != null) 'title': title,
+          if (description != null) 'description': description,
+        },
+      );
+      return PlaylistModel.fromJson(response.data);
+    } catch (e, st) {
+      AppLogger.error(
+        'Update playlist failed',
+        error: e,
+        stackTrace: st,
+        name: 'PlaylistRepository',
+      );
+      rethrow;
+    }
+  }
+
+  @override
   Future<void> deletePlaylist(String id) async {
     try {
       await _dio.delete('${ApiConstants.playlists}/$id');

@@ -7,10 +7,12 @@ import 'core/theme/app_theme.dart';
 
 // Data
 import 'data/repositories_impl/auth_repository_impl.dart';
+import 'data/repositories_impl/analytics_repository_impl.dart';
 import 'data/repositories_impl/content_repository_impl.dart';
 import 'data/repositories_impl/playlist_repository_impl.dart';
 
 import 'domain/repositories/user_repository.dart';
+import 'domain/repositories/analytics_repository.dart';
 import 'domain/repositories/content_repository.dart';
 import 'domain/repositories/playlist_repository.dart';
 import 'data/repositories_impl/user_repository_impl.dart';
@@ -48,6 +50,9 @@ void main() {
         RepositoryProvider<ContentRepository>(
           create: (context) => ContentRepositoryImpl(apiClient.dio),
         ),
+        RepositoryProvider<AnalyticsRepository>(
+          create: (context) => AnalyticsRepositoryImpl(apiClient.dio),
+        ),
         RepositoryProvider<PlaylistRepository>(
           create: (context) => PlaylistRepositoryImpl(apiClient.dio),
         ),
@@ -64,7 +69,10 @@ void main() {
                 HomeCubit(context.read<ContentRepository>())..loadContent(),
           ),
           BlocProvider(
-            create: (context) => SearchCubit(context.read<ContentRepository>()),
+            create: (context) => SearchCubit(
+              context.read<ContentRepository>(),
+              context.read<AnalyticsRepository>(),
+            )..init(),
           ),
           BlocProvider(
             create: (context) => LibraryCubit(
@@ -88,28 +96,35 @@ class OmniSourceApp extends StatelessWidget {
       title: 'OmniSource AI',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: BlocBuilder<AuthCubit, AuthState>(
-        builder: (context, state) {
+      home: BlocListener<AuthCubit, AuthState>(
+        listener: (context, state) {
           if (state is AuthAuthenticated) {
-            if (state.needsOnboarding) {
-              return const InterestsSelectionScreen();
-            }
-            // if tags already choosed go to main layout
-            return const MainLayout();
+            context.read<LibraryCubit>().loadLibraryData();
           }
-
-          // loading spinner
-          if (state is AuthLoading) {
-            return const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(color: Color(0xFF0984E3)),
-              ),
-            );
-          }
-
-          // if not authorized
-          return const LoginScreen();
         },
+        child: BlocBuilder<AuthCubit, AuthState>(
+          builder: (context, state) {
+            if (state is AuthAuthenticated) {
+              if (state.needsOnboarding) {
+                return const InterestsSelectionScreen();
+              }
+              // if tags already choosed go to main layout
+              return const MainLayout();
+            }
+
+            // loading spinner
+            if (state is AuthLoading) {
+              return const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(color: Color(0xFF0984E3)),
+                ),
+              );
+            }
+
+            // if not authorized
+            return const LoginScreen();
+          },
+        ),
       ),
     );
   }

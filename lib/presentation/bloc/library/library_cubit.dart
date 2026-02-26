@@ -8,6 +8,9 @@ import 'library_state.dart';
 class LibraryCubit extends Cubit<LibraryState> {
   final ContentRepository contentRepository;
   final PlaylistRepository playlistRepository;
+  static const Duration _freshWindow = Duration(seconds: 15);
+  DateTime? _lastLoadedAt;
+  Future<void>? _inflightLoad;
 
   LibraryCubit({
     required this.contentRepository,
@@ -43,10 +46,32 @@ class LibraryCubit extends Cubit<LibraryState> {
     );
   }
 
-  Future<void> loadLibraryData() async {
-    emit(LibraryLoading());
+  Future<void> loadLibraryData({bool force = false, bool showLoader = true}) async {
+    final now = DateTime.now();
+    if (!force &&
+        state is LibraryLoaded &&
+        _lastLoadedAt != null &&
+        now.difference(_lastLoadedAt!) < _freshWindow) {
+      return;
+    }
+
+    final existing = _inflightLoad;
+    if (existing != null) {
+      return existing;
+    }
+
+    final future = _loadInternal(showLoader: showLoader);
+    _inflightLoad = future;
+    await future;
+  }
+
+  Future<void> _loadInternal({required bool showLoader}) async {
+    if (showLoader && state is! LibraryLoaded) {
+      emit(LibraryLoading());
+    }
     try {
       emit(await _fetchLoadedState());
+      _lastLoadedAt = DateTime.now();
     } catch (e, st) {
       AppLogger.error(
         'Library load failed',
@@ -55,6 +80,8 @@ class LibraryCubit extends Cubit<LibraryState> {
         name: 'LibraryCubit',
       );
       emit(LibraryError('Failed to load library data'));
+    } finally {
+      _inflightLoad = null;
     }
   }
 
@@ -70,7 +97,7 @@ class LibraryCubit extends Cubit<LibraryState> {
         name: 'LibraryCubit',
       );
     } finally {
-      await loadLibraryData();
+      await loadLibraryData(force: true, showLoader: false);
     }
   }
 
@@ -86,7 +113,31 @@ class LibraryCubit extends Cubit<LibraryState> {
         name: 'LibraryCubit',
       );
     } finally {
-      await loadLibraryData();
+      await loadLibraryData(force: true, showLoader: false);
+    }
+  }
+
+  Future<void> updatePlaylist(
+    String id, {
+    String? title,
+    String? description,
+  }) async {
+    try {
+      await playlistRepository.updatePlaylist(
+        id,
+        title: title,
+        description: description,
+      );
+      AppLogger.info('Playlist updated: $id', name: 'LibraryCubit');
+    } catch (e, st) {
+      AppLogger.error(
+        'Update playlist failed',
+        error: e,
+        stackTrace: st,
+        name: 'LibraryCubit',
+      );
+    } finally {
+      await loadLibraryData(force: true, showLoader: false);
     }
   }
 
@@ -105,7 +156,7 @@ class LibraryCubit extends Cubit<LibraryState> {
         name: 'LibraryCubit',
       );
     } finally {
-      await loadLibraryData();
+      await loadLibraryData(force: true, showLoader: false);
     }
   }
 
@@ -124,7 +175,7 @@ class LibraryCubit extends Cubit<LibraryState> {
         name: 'LibraryCubit',
       );
     } finally {
-      await loadLibraryData();
+      await loadLibraryData(force: true, showLoader: false);
     }
   }
 
@@ -150,7 +201,7 @@ class LibraryCubit extends Cubit<LibraryState> {
         name: 'LibraryCubit',
       );
     } finally {
-      await loadLibraryData();
+      await loadLibraryData(force: true, showLoader: false);
     }
   }
 
@@ -169,7 +220,7 @@ class LibraryCubit extends Cubit<LibraryState> {
         name: 'LibraryCubit',
       );
     } finally {
-      await loadLibraryData();
+      await loadLibraryData(force: true, showLoader: false);
     }
   }
 
