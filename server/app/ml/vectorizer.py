@@ -1,4 +1,5 @@
 import re
+import threading
 from typing import List, Optional
 
 import numpy as np
@@ -13,6 +14,7 @@ class ContentVectorizer:
         self.device = "cpu"
         self.model = None
         self._load_failed = False
+        self._load_lock = threading.Lock()
 
     def _clean_text(self, text: str) -> str:
         # cleaning text: lowercasing, removing HTML tags and punctuation
@@ -26,19 +28,22 @@ class ContentVectorizer:
     def _load_model(self) -> None:
         if self.model is not None or self._load_failed:
             return
-        try:
-            import torch
-            from sentence_transformers import SentenceTransformer
+        with self._load_lock:
+            if self.model is not None or self._load_failed:
+                return
+            try:
+                import torch
+                from sentence_transformers import SentenceTransformer
 
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
-            self.model = SentenceTransformer(self.model_name, device=self.device)
-            logger.info("Vectorizer initialized on %s", self.device)
-        except Exception as exc:
-            self._load_failed = True
-            logger.warning(
-                "SentenceTransformer unavailable. Falling back to hash embeddings: %s",
-                exc,
-            )
+                self.device = "cuda" if torch.cuda.is_available() else "cpu"
+                self.model = SentenceTransformer(self.model_name, device=self.device)
+                logger.info("Vectorizer initialized on %s", self.device)
+            except Exception as exc:
+                self._load_failed = True
+                logger.warning(
+                    "SentenceTransformer unavailable. Falling back to hash embeddings: %s",
+                    exc,
+                )
 
     @staticmethod
     def _hash_embedding(text: str, dim: int = 128) -> List[float]:
@@ -96,10 +101,13 @@ class ContentVectorizer:
             return [self._hash_embedding(text) for text in cleaned_texts]
 
 _vectorizer: Optional[ContentVectorizer] = None
+_vectorizer_lock = threading.Lock()
 
 
 def get_vectorizer() -> ContentVectorizer:
     global _vectorizer
     if _vectorizer is None:
-        _vectorizer = ContentVectorizer()
+        with _vectorizer_lock:
+            if _vectorizer is None:
+                _vectorizer = ContentVectorizer()
     return _vectorizer

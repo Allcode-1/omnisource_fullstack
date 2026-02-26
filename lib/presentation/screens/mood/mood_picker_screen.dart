@@ -20,7 +20,7 @@ class _MoodPickerScreenState extends State<MoodPickerScreen> {
       title: 'Focus Mode',
       subtitle: 'Clear mind, deep concentration',
       icon: CupertinoIcons.bolt_fill,
-      color: Color(0xFF0A84FF),
+      color: Color(0xFF5AA9FF),
       tags: ['productivity', 'sci-fi', 'ambient'],
       type: 'all',
     ),
@@ -70,6 +70,8 @@ class _MoodPickerScreenState extends State<MoodPickerScreen> {
   _MoodConfig get _activeMood =>
       _moods.firstWhere((mood) => mood.id == _activeMoodId);
 
+  String _contentKey(UnifiedContent item) => '${item.type}:${item.externalId}';
+
   @override
   void initState() {
     super.initState();
@@ -95,7 +97,7 @@ class _MoodPickerScreenState extends State<MoodPickerScreen> {
       final merged = <String, UnifiedContent>{};
       for (final list in responses) {
         for (final item in list) {
-          merged[item.externalId] = item;
+          merged[_contentKey(item)] = item;
         }
       }
       final next = merged.values.toList()
@@ -170,7 +172,7 @@ class _MoodPickerScreenState extends State<MoodPickerScreen> {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1C1C1E),
+                  color: const Color(0xFF16213A),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Column(
@@ -297,7 +299,7 @@ class _MoodCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected
               ? mood.color.withValues(alpha: 0.28)
-              : const Color(0xFF1C1C1E),
+              : const Color(0xFF16213A),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected ? mood.color : Colors.white12,

@@ -31,7 +31,8 @@ class _HomeLayoutEditorScreenState extends State<HomeLayoutEditorScreen> {
   List<String> _buildInitialOrder() {
     final base = <String>[];
     for (final section in widget.initialConfig.orderedSections) {
-      if (widget.availableSections.contains(section) && !base.contains(section)) {
+      if (widget.availableSections.contains(section) &&
+          !base.contains(section)) {
         base.add(section);
       }
     }
@@ -105,7 +106,7 @@ class _HomeLayoutEditorScreenState extends State<HomeLayoutEditorScreen> {
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF1C1C1E),
+              color: const Color(0xFF16213A),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.white10),
             ),

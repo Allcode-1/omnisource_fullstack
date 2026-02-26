@@ -53,7 +53,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'error':
         return Colors.redAccent;
       default:
-        return const Color(0xFF0A84FF);
+        return const Color(0xFF5AA9FF);
     }
   }
 

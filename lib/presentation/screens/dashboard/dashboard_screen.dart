@@ -188,9 +188,9 @@ class _DashboardTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
+          color: const Color(0xFF16213A).withValues(alpha: 0.86),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,7 +199,7 @@ class _DashboardTile extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: const Color(0xFF0A84FF).withOpacity(0.22),
+                color: const Color(0xFF5AA9FF).withValues(alpha: 0.24),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(item.icon, color: Colors.white, size: 20),

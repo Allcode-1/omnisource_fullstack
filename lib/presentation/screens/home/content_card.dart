@@ -70,7 +70,7 @@ class ContentCard extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: const BoxDecoration(
-                            color: Colors.black38,
+                            color: Color(0x7A0A1020),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -93,14 +93,16 @@ class ContentCard extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: const BoxDecoration(
-                            color: Colors.black38,
+                            color: Color(0x7A0A1020),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             isLiked
                                 ? CupertinoIcons.heart_fill
                                 : CupertinoIcons.heart,
-                            color: isLiked ? Colors.redAccent : Colors.white,
+                            color: isLiked
+                                ? const Color(0xFFFF6B7A)
+                                : Colors.white,
                             size: 20,
                           ),
                         ),
@@ -115,7 +117,7 @@ class ContentCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     color: Colors.white,
                   ),
                 ),
@@ -139,17 +141,17 @@ class ContentCard extends StatelessWidget {
       height: 145,
       width: 145,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: const Color(0xCC020816).withValues(alpha: 0.45),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         child: Image.network(
           item.imageUrl ?? '',
           fit: BoxFit.cover,

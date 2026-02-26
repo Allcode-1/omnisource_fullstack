@@ -5,6 +5,7 @@ from app.models.content_meta import ContentMetadata
 from app.ml.similarity import SimilarityManager
 from app.ml.vectorizer import get_vectorizer
 from app.schemas.content import UnifiedContent
+from app.core.redis import redis_client
 from app.services.content_service import ContentService
 from beanie.operators import In
 import numpy as np
@@ -14,6 +15,8 @@ logger = get_logger(__name__)
 
 
 class RecommenderEngine:
+    MIN_DEEP_VECTOR_CANDIDATES = 25
+
     EVENT_WEIGHTS = {
         "view": 0.2,
         "open_detail": 0.5,
@@ -110,13 +113,14 @@ class RecommenderEngine:
 
         user_profile_vector = (np.sum(weighted_vectors, axis=0) / total_weight).tolist()
 
-        # Exclude content already interacted with heavily.
-        candidates_query = ContentMetadata.find(
-            {"ext_id": {"$nin": list(interaction_weight_by_id.keys())}}
-        )
+        # Exclude already seen content and skip docs without vectors.
+        candidates_filter: dict[str, object] = {
+            "ext_id": {"$nin": list(interaction_weight_by_id.keys())},
+            "features_vector.0": {"$exists": True},
+        }
         if content_type and content_type != "all":
-            candidates_query = candidates_query.find(ContentMetadata.type == content_type)
-        candidates = await candidates_query.to_list()
+            candidates_filter["type"] = content_type
+        candidates = await ContentMetadata.find(candidates_filter).to_list()
 
         scored_results = []
         for item in candidates:
@@ -149,6 +153,13 @@ class RecommenderEngine:
         content_type: Optional[str] = None,
         limit: int = 20,
     ) -> List[UnifiedContent]:
+        normalized_tag = tag.strip().lower()
+        resolved_type = content_type if content_type and content_type != "all" else "all"
+        cache_key = f"deep_research:{resolved_type}:{limit}:{normalized_tag}"
+        cached = await redis_client.get_cache(cache_key)
+        if isinstance(cached, list):
+            return [UnifiedContent.model_validate(item) for item in cached]
+
         logger.info(
             "Deep research started: tag=%s type=%s limit=%s",
             tag,
@@ -156,18 +167,41 @@ class RecommenderEngine:
             limit,
         )
 
+        def _filter_discovery(items: List[UnifiedContent]) -> List[UnifiedContent]:
+            if content_type and content_type != "all":
+                return [item for item in items if item.type == content_type]
+            return items
+
+        async def _return_discovery(reason: str) -> List[UnifiedContent]:
+            logger.info(
+                "Using discovery fallback for tag=%s reason=%s type=%s",
+                tag,
+                reason,
+                content_type,
+            )
+            fallback = _filter_discovery(await self.content_service.get_discovery(tag))
+            result = fallback[:limit]
+            await redis_client.set_cache(
+                cache_key,
+                [item.model_dump() for item in result],
+                expire=900,
+            )
+            return result
+
         tag_vector = await asyncio.to_thread(get_vectorizer().get_embedding, tag)
         if not tag_vector:
-            logger.warning("Tag vector is empty for tag=%s. Using discovery fallback.", tag)
-            fallback = await self.content_service.get_discovery(tag)
-            if content_type and content_type != "all":
-                fallback = [item for item in fallback if item.type == content_type]
-            return fallback[:limit]
+            logger.warning("Tag vector is empty for tag=%s", tag)
+            return await _return_discovery("empty_tag_vector")
 
-        query = ContentMetadata.find()
+        query_filter: dict[str, object] = {"features_vector.0": {"$exists": True}}
         if content_type and content_type != "all":
-            query = query.find(ContentMetadata.type == content_type)
-        candidates = await query.to_list()
+            query_filter["type"] = content_type
+        candidates = await ContentMetadata.find(query_filter).to_list()
+
+        if len(candidates) < self.MIN_DEEP_VECTOR_CANDIDATES:
+            return await _return_discovery(
+                f"small_vector_pool_{len(candidates)}"
+            )
 
         scored_results = []
         for item in candidates:
@@ -181,13 +215,29 @@ class RecommenderEngine:
         filtered = [item for score, item in scored_results if score > 0]
 
         if not filtered:
-            logger.info("No vector matches for tag=%s. Using discovery fallback.", tag)
-            fallback = await self.content_service.get_discovery(tag)
-            if content_type and content_type != "all":
-                fallback = [item for item in fallback if item.type == content_type]
-            return fallback[:limit]
+            return await _return_discovery("no_positive_scores")
 
         result = [self._to_unified_content(item) for item in filtered[:limit]]
+        if len(result) < limit:
+            # Fill the tail with tag-based discovery to avoid undersized result sets.
+            discovery = _filter_discovery(await self.content_service.get_discovery(tag))
+            merged: dict[str, UnifiedContent] = {
+                f"{item.type}:{item.external_id}": item for item in result
+            }
+            for item in discovery:
+                key = f"{item.type}:{item.external_id}"
+                if key in merged:
+                    continue
+                merged[key] = item
+                if len(merged) >= limit:
+                    break
+            result = list(merged.values())[:limit]
+
+        await redis_client.set_cache(
+            cache_key,
+            [item.model_dump() for item in result],
+            expire=900,
+        )
         logger.info(
             "Deep research filtering completed: tag=%s candidates=%s matched=%s returned=%s",
             tag,

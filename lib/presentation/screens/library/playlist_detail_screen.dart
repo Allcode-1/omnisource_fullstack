@@ -105,7 +105,10 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                   if (widget.description != null)
                     Text(
                       widget.description!,
-                      style: const TextStyle(color: Colors.grey, fontSize: 16),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                      ),
                     ),
                   const SizedBox(height: 8),
                   Text(
@@ -192,8 +195,8 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                       Positioned.fill(
                         child: Container(
                           color: isSelected
-                              ? Colors.blue.withOpacity(0.4)
-                              : Colors.black45,
+                              ? const Color(0x885AA9FF)
+                              : const Color(0x760A1020),
                           child: Icon(
                             isSelected
                                 ? CupertinoIcons.check_mark_circled_solid
@@ -210,7 +213,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                 ),
                 subtitle: Text(
                   item.subtitle ?? item.type,
-                  style: const TextStyle(color: Colors.grey),
+                  style: const TextStyle(color: Colors.white60),
                 ),
                 onTap: () {
                   if (isEditMode) {
@@ -230,7 +233,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       ),
       bottomSheet: isEditMode && selectedIds.isNotEmpty
           ? Container(
-              color: Colors.black,
+              color: const Color(0xFF111A2E),
               padding: const EdgeInsets.all(16),
               child: CupertinoButton(
                 color: CupertinoColors.destructiveRed,
@@ -252,13 +255,10 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.white10,
+          color: isSelected ? const Color(0xFF5AA9FF) : const Color(0xFF1A2743),
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Text(
-          label,
-          style: TextStyle(color: isSelected ? Colors.black : Colors.white),
-        ),
+        child: Text(label, style: const TextStyle(color: Colors.white)),
       ),
     );
   }

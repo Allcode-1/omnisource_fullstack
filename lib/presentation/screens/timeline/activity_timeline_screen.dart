@@ -67,7 +67,7 @@ class _ActivityTimelineScreenState extends State<ActivityTimelineScreen> {
       case 'playlist_add':
         return Colors.greenAccent;
       case 'search':
-        return const Color(0xFF0A84FF);
+        return const Color(0xFF5AA9FF);
       default:
         return Colors.white70;
     }

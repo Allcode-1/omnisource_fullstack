@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/content_repository.dart';
 import '../search/search_grid_card.dart';
@@ -96,7 +97,7 @@ class _TrendingHubScreenState extends State<TrendingHubScreen>
               children: [
                 Text(
                   'Live trend map by content type',
-                  style: TextStyle(color: Colors.white54, fontSize: 14),
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
                 ),
               ],
             ),
@@ -107,7 +108,7 @@ class _TrendingHubScreenState extends State<TrendingHubScreen>
             isScrollable: true,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white54,
-            indicatorColor: const Color(0xFF0A84FF),
+            indicatorColor: AppTheme.primary,
             tabs: _tabs.map((tab) => Tab(text: tab.$1)).toList(),
           ),
           Expanded(

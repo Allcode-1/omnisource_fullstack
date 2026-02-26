@@ -57,8 +57,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFF1C1C1E),
+              color: Theme.of(context).cardColor.withValues(alpha: 0.86),
               borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
             child: Row(
               children: [
@@ -76,7 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       SizedBox(height: 6),
                       Text(
                         'Switch between content-only and hybrid ML',
-                        style: TextStyle(color: Colors.white54, fontSize: 12),
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
                       ),
                     ],
                   ),
@@ -133,8 +134,9 @@ class _NavTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: Theme.of(context).cardColor.withValues(alpha: 0.86),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: ListTile(
         leading: Icon(icon),

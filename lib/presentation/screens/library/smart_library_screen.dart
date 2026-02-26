@@ -179,7 +179,9 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFF2A1E1E),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                        border: Border.all(
+                          color: Colors.redAccent.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Text(
                         _analyticsError,
@@ -204,7 +206,8 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
                         Expanded(
                           child: _MetricBox(
                             title: 'Avg Dwell',
-                            value: '${usage.avgDwellSeconds.toStringAsFixed(1)}s',
+                            value:
+                                '${usage.avgDwellSeconds.toStringAsFixed(1)}s',
                           ),
                         ),
                       ],
@@ -217,7 +220,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C1E),
+                      color: const Color(0xFF16213A),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Column(
@@ -268,7 +271,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C1E),
+                      color: const Color(0xFF16213A),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Column(
@@ -319,7 +322,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C1E),
+                      color: const Color(0xFF16213A),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Column(
@@ -482,7 +485,7 @@ class _MetricBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: const Color(0xFF16213A),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(

@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:omnisource/domain/entities/unified_content.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../bloc/library/library_cubit.dart';
 import '../../bloc/library/library_state.dart';
 import '../../bloc/auth/auth_cubit.dart';
@@ -42,10 +43,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
         width: 48,
         height: 48,
         decoration: BoxDecoration(
-          color: Colors.white10,
+          color: const Color(0xFF1E2B49),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: iconColor ?? Colors.white54),
+        child: Icon(icon, color: iconColor ?? const Color(0xFF7AC9FF)),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Text("${items.length} items"),
@@ -238,7 +239,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
               Navigator.pop(ctx);
               Navigator.push(
                 context,
-                CupertinoPageRoute(builder: (_) => const PlaylistEditorScreen()),
+                CupertinoPageRoute(
+                  builder: (_) => const PlaylistEditorScreen(),
+                ),
               );
             },
             child: const Text('Playlist Editor'),
@@ -291,7 +294,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                                 Navigator.push(
                                   context,
                                   CupertinoPageRoute(
-                                    builder: (_) => const PlaylistEditorScreen(),
+                                    builder: (_) =>
+                                        const PlaylistEditorScreen(),
                                   ),
                                 );
                               },
@@ -304,7 +308,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
                   if (state is LibraryLoading)
                     const SliverFillRemaining(
-                      child: Center(child: CupertinoActivityIndicator()),
+                      child: Center(
+                        child: CupertinoActivityIndicator(
+                          color: AppTheme.primary,
+                        ),
+                      ),
                     )
                   else if (state is LibraryLoaded)
                     SliverPadding(
@@ -341,7 +349,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       child: Center(
                         child: Text(
                           state.message,
-                          style: const TextStyle(color: Colors.redAccent),
+                          style: const TextStyle(color: Color(0xFFFF7A7A)),
                         ),
                       ),
                     ),
@@ -403,12 +411,23 @@ class _LibraryScreenState extends State<LibraryScreen> {
             : "U";
         return Container(
           padding: const EdgeInsets.fromLTRB(16, 50, 16, 10),
-          color: Theme.of(context).scaffoldBackgroundColor,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Theme.of(context).colorScheme.surface.withValues(alpha: 0.96),
+                Colors.transparent,
+              ],
+            ),
+          ),
           child: Row(
             children: [
-              const Text(
+              Text(
                 "Library",
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+                style: Theme.of(
+                  context,
+                ).textTheme.headlineSmall?.copyWith(fontSize: 30),
               ),
               const Spacer(),
               CupertinoButton(
@@ -434,10 +453,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 ),
                 child: CircleAvatar(
                   radius: 18,
-                  backgroundColor: Theme.of(context).primaryColor,
+                  backgroundColor: const Color(0xFF1E2A47),
                   child: Text(
                     safeLetter,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -467,9 +489,9 @@ class _LibraryToolButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
+          color: const Color(0xFF1A2743).withValues(alpha: 0.84),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white10),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
         child: Row(
           children: [
@@ -478,7 +500,10 @@ class _LibraryToolButton extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],

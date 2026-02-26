@@ -5,6 +5,8 @@ from collections import Counter
 from datetime import datetime, timedelta
 from typing import Dict, List
 
+from pymongo.errors import DuplicateKeyError
+
 from app.core.logging import get_logger
 from app.models.content_meta import ContentMetadata
 from app.models.interaction import Interaction
@@ -41,45 +43,58 @@ class AnalyticsService:
             weight = self.DEFAULT_WEIGHTS.get(payload.type, 0.1)
 
         if payload.ext_id and payload.ext_id != "app" and payload.content_type:
-            doc = await ContentMetadata.find_one(ContentMetadata.ext_id == payload.ext_id)
-            title = str(payload.meta.get("title") or payload.ext_id)
-            subtitle = payload.meta.get("subtitle")
-            image_url = payload.meta.get("image_url")
-            rating = payload.meta.get("rating") or 0.0
-            genres = payload.meta.get("genres") or []
-            release_date = payload.meta.get("release_date")
             try:
-                safe_rating = float(rating)
-            except (TypeError, ValueError):
-                safe_rating = 0.0
+                doc = await ContentMetadata.find_one(ContentMetadata.ext_id == payload.ext_id)
+                title = str(payload.meta.get("title") or payload.ext_id)
+                subtitle = payload.meta.get("subtitle")
+                image_url = payload.meta.get("image_url")
+                rating = payload.meta.get("rating") or 0.0
+                genres = payload.meta.get("genres") or []
+                release_date = payload.meta.get("release_date")
+                try:
+                    safe_rating = float(rating)
+                except (TypeError, ValueError):
+                    safe_rating = 0.0
 
-            if doc is None:
-                embedding_text = f"{title} {payload.meta.get('description') or ''}"
-                vector = await asyncio.to_thread(
-                    get_vectorizer().get_embedding,
-                    embedding_text,
+                if doc is None:
+                    embedding_text = f"{title} {payload.meta.get('description') or ''}"
+                    vector = await asyncio.to_thread(
+                        get_vectorizer().get_embedding,
+                        embedding_text,
+                    )
+                    try:
+                        await ContentMetadata(
+                            ext_id=payload.ext_id,
+                            type=payload.content_type,
+                            title=title,
+                            subtitle=subtitle,
+                            image_url=image_url,
+                            rating=safe_rating,
+                            genres=[str(item) for item in genres if item],
+                            release_date=release_date,
+                            features_vector=vector,
+                        ).insert()
+                    except DuplicateKeyError:
+                        logger.info(
+                            "Content metadata already exists (race): ext_id=%s",
+                            payload.ext_id,
+                        )
+                else:
+                    updated = False
+                    if not doc.title and title:
+                        doc.title = title
+                        updated = True
+                    if not doc.image_url and image_url:
+                        doc.image_url = str(image_url)
+                        updated = True
+                    if updated:
+                        await doc.save()
+            except Exception as exc:
+                logger.warning(
+                    "Metadata sync failed ext_id=%s error=%s",
+                    payload.ext_id,
+                    type(exc).__name__,
                 )
-                await ContentMetadata(
-                    ext_id=payload.ext_id,
-                    type=payload.content_type,
-                    title=title,
-                    subtitle=subtitle,
-                    image_url=image_url,
-                    rating=safe_rating,
-                    genres=[str(item) for item in genres if item],
-                    release_date=release_date,
-                    features_vector=vector,
-                ).insert()
-            else:
-                updated = False
-                if not doc.title and title:
-                    doc.title = title
-                    updated = True
-                if not doc.image_url and image_url:
-                    doc.image_url = str(image_url)
-                    updated = True
-                if updated:
-                    await doc.save()
 
         meta = dict(payload.meta)
         if ranking_variant:

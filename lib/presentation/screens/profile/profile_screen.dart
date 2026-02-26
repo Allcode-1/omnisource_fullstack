@@ -18,8 +18,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  static const Color _bgColor = Color(0xFF121212);
-  static const Color _surfaceColor = Color(0xFF1C1C1E);
+  static const Color _bgColor = Color(0xFF0B1220);
+  static const Color _surfaceColor = Color(0xFF16213A);
 
   User? _user;
   bool _isLoading = true;
@@ -64,7 +64,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return const Scaffold(
         backgroundColor: _bgColor,
         body: Center(
-          child: CircularProgressIndicator(color: Colors.blueAccent),
+          child: CircularProgressIndicator(color: Color(0xFF5AA9FF)),
         ),
       );
     }
@@ -109,7 +109,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(CupertinoIcons.settings_solid, color: Colors.white),
+            icon: const Icon(
+              CupertinoIcons.settings_solid,
+              color: Colors.white,
+            ),
             onPressed: () {
               Navigator.push(
                 context,
@@ -131,7 +134,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   CircleAvatar(
                     radius: 50,
-                    backgroundColor: Colors.blueAccent.withOpacity(0.1),
+                    backgroundColor: const Color(
+                      0xFF5AA9FF,
+                    ).withValues(alpha: 0.14),
                     child: Text(
                       _firstLetter(_user!.username),
                       style: GoogleFonts.inter(
@@ -242,9 +247,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: const Color(0xFF1E2C49),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Text(
         tag,
@@ -288,7 +293,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       onTap: onTap,
       leading: Icon(
         icon,
-        color: isDanger ? Colors.redAccent : Colors.blueAccent,
+        color: isDanger ? Colors.redAccent : const Color(0xFF5AA9FF),
         size: 22,
       ),
       title: Text(
@@ -353,7 +358,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Colors.blueAccent),
+                    borderSide: const BorderSide(color: Color(0xFF5AA9FF)),
                   ),
                 ),
               ),
@@ -390,7 +395,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
+                    backgroundColor: const Color(0xFF5AA9FF),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -431,7 +436,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2C2C2E),
+        backgroundColor: _surfaceColor,
         title: const Text(
           "New Interest",
           style: TextStyle(color: Colors.white),

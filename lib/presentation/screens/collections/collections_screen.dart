@@ -25,6 +25,8 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
   bool _loading = true;
   String _error = '';
 
+  String _contentKey(UnifiedContent item) => '${item.type}:${item.externalId}';
+
   @override
   void initState() {
     super.initState();
@@ -53,7 +55,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
         final map = <String, UnifiedContent>{};
         for (final list in responses) {
           for (final item in list) {
-            map[item.externalId] = item;
+            map[_contentKey(item)] = item;
           }
         }
         _itemsByCollection[name] = map.values.take(8).toList();
@@ -103,7 +105,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
               child: Center(
                 child: Text(
                   _error,
-                  style: const TextStyle(color: Colors.redAccent),
+                  style: const TextStyle(color: Color(0xFFFF7A7A)),
                 ),
               ),
             )
@@ -138,7 +140,9 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                                     vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF1C1C1E),
+                                    color: Theme.of(
+                                      context,
+                                    ).cardColor.withValues(alpha: 0.84),
                                     borderRadius: BorderRadius.circular(999),
                                   ),
                                   child: Text(

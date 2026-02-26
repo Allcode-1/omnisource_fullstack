@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/storage/home_layout_prefs.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../domain/entities/unified_content.dart';
@@ -58,9 +59,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openLayoutEditor(HomeState state) async {
     final sections = _availableSections(state);
     if (sections.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Load home sections first')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Load home sections first')));
       return;
     }
 
@@ -84,6 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       body: BlocBuilder<HomeCubit, HomeState>(
         builder: (context, state) {
@@ -99,8 +101,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: CupertinoSlidingSegmentedControl<ContentCategory>(
                         groupValue: state.category,
-                        backgroundColor: Colors.white10,
-                        thumbColor: Colors.white24,
+                        backgroundColor: theme.cardColor.withValues(
+                          alpha: 0.82,
+                        ),
+                        thumbColor: const Color(0xFF26365B),
                         children: const {
                           ContentCategory.music: Text(
                             "Music",
@@ -132,7 +136,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (state.isLoading)
                     const SliverFillRemaining(
                       child: Center(
-                        child: CupertinoActivityIndicator(color: Colors.white),
+                        child: CupertinoActivityIndicator(
+                          color: AppTheme.primary,
+                        ),
                       ),
                     )
                   else if ((state.error ?? '').isNotEmpty)
@@ -145,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               state.error ?? 'Failed to load content',
                               textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.redAccent),
+                              style: const TextStyle(color: Color(0xFFFF7A7A)),
                             ),
                             const SizedBox(height: 12),
                             ElevatedButton(
@@ -194,13 +200,24 @@ class _HomeScreenState extends State<HomeScreen> {
             : "U";
         return Container(
           padding: const EdgeInsets.fromLTRB(16, 50, 16, 10),
-          color: Theme.of(context).scaffoldBackgroundColor,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Theme.of(context).colorScheme.surface.withValues(alpha: 0.96),
+                Colors.transparent,
+              ],
+            ),
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 "OmniSource",
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+                style: Theme.of(
+                  context,
+                ).textTheme.headlineSmall?.copyWith(fontSize: 30),
               ),
               const Spacer(),
               IconButton(
@@ -221,10 +238,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
                 child: CircleAvatar(
                   radius: 18,
-                  backgroundColor: Theme.of(context).primaryColor,
+                  backgroundColor: const Color(0xFF1E2A47),
                   child: Text(
                     safeLetter,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -244,7 +264,9 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.fromLTRB(16, 25, 16, 10),
           child: Text(
             title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontSize: 21),
           ),
         ),
         SizedBox(
@@ -292,7 +314,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: CupertinoButton(
               minimumSize: const Size(0, 36),
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              color: const Color(0xFF1C1C1E),
+              color: const Color(0xFF1A2743).withValues(alpha: 0.8),
               borderRadius: BorderRadius.circular(12),
               onPressed: () {
                 Navigator.push(
@@ -302,7 +324,7 @@ class _HomeScreenState extends State<HomeScreen> {
               },
               child: Row(
                 children: [
-                  Icon(item.icon, size: 16, color: Colors.white),
+                  Icon(item.icon, size: 16, color: const Color(0xFF7AC9FF)),
                   const SizedBox(width: 6),
                   Text(
                     item.title,
@@ -351,15 +373,13 @@ class _HomeScreenState extends State<HomeScreen> {
       return (originalIndex[a.key] ?? 0).compareTo(originalIndex[b.key] ?? 0);
     });
 
-    return filtered.map((entry) => _buildSection(entry.key, entry.value)).toList();
+    return filtered
+        .map((entry) => _buildSection(entry.key, entry.value))
+        .toList();
   }
 
   List<String> _availableSections(HomeState state) {
-    final keys = <String>{
-      "Trending Now",
-      "For You",
-      ...state.homeMap.keys,
-    };
+    final keys = <String>{"Trending Now", "For You", ...state.homeMap.keys};
     return keys.toList();
   }
 }

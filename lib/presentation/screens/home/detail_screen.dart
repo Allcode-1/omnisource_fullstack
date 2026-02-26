@@ -13,8 +13,8 @@ import '../../bloc/library/library_state.dart';
 import '../search/search_grid_card.dart';
 
 class DetailScreen extends StatefulWidget {
-  static const Color _bgColor = Color(0xFF121212);
-  static const Color _surfaceColor = Color(0xFF1C1C1E);
+  static const Color _bgColor = Color(0xFF0B1220);
+  static const Color _surfaceColor = Color(0xFF16213A);
 
   final UnifiedContent content;
   const DetailScreen({super.key, required this.content});
@@ -128,7 +128,7 @@ class _DetailScreenState extends State<DetailScreen>
 
     if (fill) {
       return ColoredBox(
-        color: Colors.white.withOpacity(0.08),
+        color: Colors.white.withValues(alpha: 0.08),
         child: Center(child: icon),
       );
     }
@@ -136,7 +136,7 @@ class _DetailScreenState extends State<DetailScreen>
     return Container(
       width: size,
       height: size,
-      color: Colors.white.withOpacity(0.08),
+      color: Colors.white.withValues(alpha: 0.08),
       child: Center(child: icon),
     );
   }
@@ -147,7 +147,7 @@ class _DetailScreenState extends State<DetailScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Create a playlist first'),
-          backgroundColor: Colors.orangeAccent,
+          backgroundColor: Color(0xFF26365B),
         ),
       );
       return;
@@ -280,14 +280,16 @@ class _DetailScreenState extends State<DetailScreen>
                     pinned: true,
                     backgroundColor: Colors.transparent,
                     leading: CircleAvatar(
-                      backgroundColor: Colors.black38,
+                      backgroundColor: const Color(0x7A0A1020),
                       child: BackButton(color: Colors.white),
                     ),
                     actions: [
                       IconButton(
                         icon: Icon(
                           isLiked ? Icons.favorite : Icons.favorite_border,
-                          color: isLiked ? Colors.redAccent : Colors.white,
+                          color: isLiked
+                              ? const Color(0xFFFF6B7A)
+                              : Colors.white,
                         ),
                         onPressed: () => context
                             .read<LibraryCubit>()
@@ -309,8 +311,8 @@ class _DetailScreenState extends State<DetailScreen>
                                 borderRadius: BorderRadius.circular(22),
                                 boxShadow: const [
                                   BoxShadow(
-                                    color: Colors.black54,
-                                    blurRadius: 22,
+                                    color: Color(0xA6020816),
+                                    blurRadius: 26,
                                   ),
                                 ],
                               ),
@@ -368,7 +370,7 @@ class _DetailScreenState extends State<DetailScreen>
                             isScrollable: true,
                             labelColor: Colors.white,
                             unselectedLabelColor: Colors.white54,
-                            indicatorColor: const Color(0xFF0A84FF),
+                            indicatorColor: const Color(0xFF5AA9FF),
                             tabs: const [
                               Tab(text: 'Overview'),
                               Tab(text: 'Related'),
@@ -471,8 +473,8 @@ class _DetailScreenState extends State<DetailScreen>
             height: 50,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.black,
+                backgroundColor: const Color(0xFF5AA9FF),
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -523,7 +525,7 @@ class _DetailScreenState extends State<DetailScreen>
       itemBuilder: (context, index) {
         final item = links[index];
         return ListTile(
-          tileColor: const Color(0xFF1C1C1E),
+          tileColor: const Color(0xFF16213A),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -543,7 +545,7 @@ class _DetailScreenState extends State<DetailScreen>
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: const Color(0xFF16213A),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -580,9 +582,9 @@ class _MetaChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white10,
+        color: const Color(0xFF1E2C49),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
       child: Text(
         label,

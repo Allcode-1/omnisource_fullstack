@@ -20,6 +20,8 @@ class _ContentComparisonScreenState extends State<ContentComparisonScreen> {
   List<UnifiedContent> _items = const [];
   final List<UnifiedContent> _selected = [];
 
+  String _contentKey(UnifiedContent item) => '${item.type}:${item.externalId}';
+
   @override
   void initState() {
     super.initState();
@@ -42,7 +44,7 @@ class _ContentComparisonScreenState extends State<ContentComparisonScreen> {
       final merged = <String, UnifiedContent>{};
       for (final list in responses) {
         for (final item in list) {
-          merged[item.externalId] = item;
+          merged[_contentKey(item)] = item;
         }
       }
 
@@ -71,14 +73,11 @@ class _ContentComparisonScreenState extends State<ContentComparisonScreen> {
   }
 
   void _toggleSelection(UnifiedContent item) {
-    final exists = _selected.any(
-      (selected) => selected.externalId == item.externalId,
-    );
+    final key = _contentKey(item);
+    final exists = _selected.any((selected) => _contentKey(selected) == key);
     setState(() {
       if (exists) {
-        _selected.removeWhere(
-          (selected) => selected.externalId == item.externalId,
-        );
+        _selected.removeWhere((selected) => _contentKey(selected) == key);
       } else if (_selected.length < 3) {
         _selected.add(item);
       }
@@ -192,7 +191,7 @@ class _ContentComparisonScreenState extends State<ContentComparisonScreen> {
                   (context, index) {
                     final item = _items[index];
                     final selectedIndex = _selected.indexWhere(
-                      (selected) => selected.externalId == item.externalId,
+                      (selected) => _contentKey(selected) == _contentKey(item),
                     );
                     return _CandidateCard(
                       item: item,
@@ -242,7 +241,7 @@ class _TypeFilter extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: selected ? Colors.white : const Color(0xFF1C1C1E),
+                  color: selected ? Colors.white : const Color(0xFF16213A),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
@@ -273,7 +272,7 @@ class _ComparisonHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: const Color(0xFF16213A),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -312,7 +311,7 @@ class _ComparisonTable extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: const Color(0xFF16213A),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -402,10 +401,10 @@ class _CandidateCard extends StatelessWidget {
         opacity: disabled ? 0.45 : 1.0,
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF1C1C1E),
+            color: const Color(0xFF16213A),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isSelected ? const Color(0xFF0A84FF) : Colors.white10,
+              color: isSelected ? const Color(0xFF5AA9FF) : Colors.white10,
               width: isSelected ? 1.4 : 1.0,
             ),
           ),
@@ -444,7 +443,7 @@ class _CandidateCard extends StatelessWidget {
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? const Color(0xFF0A84FF)
+                                ? const Color(0xFF5AA9FF)
                                 : Colors.black45,
                             shape: BoxShape.circle,
                           ),

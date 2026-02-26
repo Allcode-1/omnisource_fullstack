@@ -13,20 +13,30 @@ class ContentCard extends StatelessWidget {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               image: DecorationImage(
                 image: NetworkImage(item.imageUrl ?? ''),
                 fit: BoxFit.cover,
-                onError: (_, __) => const Icon(Icons.broken_image),
               ),
               boxShadow: const [
                 BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 10,
-                  offset: Offset(0, 5),
+                  color: Color(0xAA020816),
+                  blurRadius: 12,
+                  offset: Offset(0, 6),
                 ),
               ],
             ),
+            child: item.imageUrl == null || item.imageUrl!.isEmpty
+                ? Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A2743),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.broken_image, color: Colors.white38),
+                    ),
+                  )
+                : null,
           ),
         ),
         const SizedBox(height: 8),
@@ -39,7 +49,7 @@ class ContentCard extends StatelessWidget {
         Text(
           item.subtitle ?? item.type,
           maxLines: 1,
-          style: const TextStyle(color: Colors.grey, fontSize: 12),
+          style: const TextStyle(color: Colors.white60, fontSize: 12),
         ),
       ],
     );

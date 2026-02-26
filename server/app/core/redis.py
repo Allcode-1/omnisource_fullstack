@@ -1,5 +1,6 @@
 import asyncio
 import json
+import time
 from typing import Any
 
 import redis.asyncio as redis
@@ -14,6 +15,7 @@ class RedisService:
     def __init__(self):
         self.redis_url = settings.REDIS_URL or "redis://localhost:6379"
         self._timeout = settings.REDIS_OPERATION_TIMEOUT_SECONDS
+        self._down_cooldown_seconds = 10.0
         self.client = redis.from_url(
             self.redis_url,
             decode_responses=True,
@@ -24,16 +26,26 @@ class RedisService:
         )
         self._is_available = True
         self._was_down_logged = False
+        self._retry_after_monotonic = 0.0
 
     def _mark_up(self) -> None:
         self._is_available = True
         self._was_down_logged = False
+        self._retry_after_monotonic = 0.0
 
     def _mark_down(self, message: str) -> None:
         self._is_available = False
+        self._retry_after_monotonic = (
+            time.monotonic() + self._down_cooldown_seconds
+        )
         if not self._was_down_logged:
             logger.warning(message)
             self._was_down_logged = True
+
+    def _should_skip(self) -> bool:
+        return (not self._is_available) and (
+            time.monotonic() < self._retry_after_monotonic
+        )
 
     async def ping(self) -> bool:
         try:
@@ -45,6 +57,8 @@ class RedisService:
             return False
 
     async def get_cache(self, key: str):
+        if self._should_skip():
+            return None
         try:
             data = await asyncio.wait_for(self.client.get(key), timeout=self._timeout)
             self._mark_up()
@@ -58,6 +72,8 @@ class RedisService:
             return None
 
     async def set_cache(self, key: str, value: Any, expire: int = 3600):
+        if self._should_skip():
+            return
         try:
             await asyncio.wait_for(
                 self.client.set(key, json.dumps(value), ex=expire),
@@ -69,6 +85,8 @@ class RedisService:
             self._mark_down(f"Failed to write cache key: {key}")
 
     async def delete_cache(self, key: str) -> None:
+        if self._should_skip():
+            return
         try:
             await asyncio.wait_for(self.client.delete(key), timeout=self._timeout)
             self._mark_up()
@@ -77,6 +95,8 @@ class RedisService:
             self._mark_down(f"Failed to delete cache key: {key}")
 
     async def delete_by_prefix(self, prefix: str, limit: int = 500) -> int:
+        if self._should_skip():
+            return 0
         deleted = 0
         pattern = f"{prefix}*"
         try:

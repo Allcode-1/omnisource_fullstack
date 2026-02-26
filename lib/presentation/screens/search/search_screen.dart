@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../core/theme/app_theme.dart';
 
 import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/user_repository.dart';
@@ -122,7 +123,9 @@ class _SearchScreenState extends State<SearchScreen> {
                   if (state.isLoading)
                     const SliverFillRemaining(
                       child: Center(
-                        child: CupertinoActivityIndicator(color: Colors.white),
+                        child: CupertinoActivityIndicator(
+                          color: AppTheme.primary,
+                        ),
                       ),
                     )
                   else if (state.errorMessage.isNotEmpty)
@@ -131,7 +134,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       child: Center(
                         child: Text(
                           state.errorMessage,
-                          style: const TextStyle(color: Colors.redAccent),
+                          style: const TextStyle(color: Color(0xFFFF7A7A)),
                         ),
                       ),
                     )
@@ -188,13 +191,24 @@ class _SearchScreenState extends State<SearchScreen> {
 
         return Container(
           padding: const EdgeInsets.fromLTRB(16, 50, 16, 10),
-          color: Theme.of(context).scaffoldBackgroundColor,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Theme.of(context).colorScheme.surface.withValues(alpha: 0.96),
+                Colors.transparent,
+              ],
+            ),
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 "Search",
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+                style: Theme.of(
+                  context,
+                ).textTheme.headlineSmall?.copyWith(fontSize: 30),
               ),
               GestureDetector(
                 onTap: () {
@@ -209,10 +223,13 @@ class _SearchScreenState extends State<SearchScreen> {
                 },
                 child: CircleAvatar(
                   radius: 18,
-                  backgroundColor: Theme.of(context).primaryColor,
+                  backgroundColor: const Color(0xFF1E2A47),
                   child: Text(
                     safeLetter,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -296,22 +313,23 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildSearchBar(BuildContext context) {
+    final theme = Theme.of(context);
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       height: 52,
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: theme.cardColor.withValues(alpha: 0.84),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: _focusNode.hasFocus
-              ? const Color(0xFF0A84FF)
-              : Colors.transparent,
+              ? AppTheme.primary
+              : Colors.white.withValues(alpha: 0.08),
           width: 1.4,
         ),
         boxShadow: [
           if (_focusNode.hasFocus)
             BoxShadow(
-              color: const Color(0xFF0A84FF).withOpacity(0.15),
+              color: AppTheme.primary.withValues(alpha: 0.2),
               blurRadius: 12,
               spreadRadius: 1,
             ),
@@ -320,11 +338,11 @@ class _SearchScreenState extends State<SearchScreen> {
       child: CupertinoSearchTextField(
         controller: _searchController,
         focusNode: _focusNode,
-        backgroundColor: const Color(0xFF1C1C1E),
+        backgroundColor: theme.cardColor.withValues(alpha: 0.84),
         borderRadius: BorderRadius.circular(14),
-        itemColor: Colors.white54,
+        itemColor: Colors.white70,
         style: const TextStyle(color: Colors.white, fontSize: 15),
-        placeholderStyle: const TextStyle(color: Colors.white38, fontSize: 15),
+        placeholderStyle: const TextStyle(color: Colors.white54, fontSize: 15),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         prefixIcon: const Icon(
           CupertinoIcons.search,
@@ -377,7 +395,9 @@ class _SearchScreenState extends State<SearchScreen> {
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(horizontal: 18),
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.white : const Color(0xFF1C1C1E),
+                  color: isSelected
+                      ? const Color(0xFF5AA9FF)
+                      : Theme.of(context).cardColor.withValues(alpha: 0.82),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 alignment: Alignment.center,
@@ -386,7 +406,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: isSelected ? Colors.black : Colors.white,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -505,7 +525,7 @@ class _SearchScreenState extends State<SearchScreen> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF1C1C1E),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -620,7 +640,10 @@ class _SearchScreenState extends State<SearchScreen> {
           isInitial
               ? "Find your next favorite"
               : "Nothing found for active filters",
-          style: TextStyle(color: Colors.white.withOpacity(0.25), fontSize: 15),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.42),
+            fontSize: 15,
+          ),
         ),
       ),
     );

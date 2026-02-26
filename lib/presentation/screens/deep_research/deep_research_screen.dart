@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/auth_repository.dart';
@@ -25,6 +28,8 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
   final Set<String> _selectedTags = {};
 
   List<UnifiedContent> _results = const [];
+  Timer? _researchDebounce;
+  int _researchRequestToken = 0;
 
   bool _isLoadingTags = true;
   bool _isLoadingResults = false;
@@ -39,6 +44,7 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
 
   @override
   void dispose() {
+    _researchDebounce?.cancel();
     _tagSearchController.dispose();
     super.dispose();
   }
@@ -63,7 +69,7 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
       if (authState is AuthAuthenticated &&
           authState.user.interests.isNotEmpty) {
         _selectedTags.addAll(authState.user.interests.take(3));
-        await _runDeepResearch();
+        _scheduleDeepResearch();
       }
     } catch (e, st) {
       AppLogger.error(
@@ -92,12 +98,18 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
 
   Future<void> _runDeepResearch() async {
     if (_selectedTags.isEmpty) {
+      _researchRequestToken++;
       setState(() {
         _results = const [];
         _error = '';
+        _isLoadingResults = false;
       });
       return;
     }
+
+    final requestToken = ++_researchRequestToken;
+    final selectedTags = _selectedTags.toList(growable: false);
+    final selectedType = _activeType;
 
     setState(() {
       _isLoadingResults = true;
@@ -106,10 +118,22 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
 
     try {
       final repository = context.read<ContentRepository>();
-      final type = _activeType == 'all' ? null : _activeType;
+      final type = selectedType == 'all' ? null : selectedType;
 
       final responses = await Future.wait(
-        _selectedTags.map((tag) => repository.getDeepResearch(tag, type: type)),
+        selectedTags.map((tag) async {
+          try {
+            return await repository.getDeepResearch(tag, type: type);
+          } catch (e, st) {
+            AppLogger.error(
+              'Deep research tag request failed: $tag',
+              error: e,
+              stackTrace: st,
+              name: 'DeepResearchScreen',
+            );
+            return <UnifiedContent>[];
+          }
+        }),
       );
 
       final merged = <String, UnifiedContent>{};
@@ -117,7 +141,7 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
 
       for (final list in responses) {
         for (final item in list) {
-          final id = item.externalId;
+          final id = _contentKey(item);
           if (id.isEmpty) continue;
 
           merged.putIfAbsent(id, () => item);
@@ -127,13 +151,13 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
 
       final items = merged.values.toList();
       items.sort((a, b) {
-        final scoreA = scoreById[a.externalId] ?? 0;
-        final scoreB = scoreById[b.externalId] ?? 0;
+        final scoreA = scoreById[_contentKey(a)] ?? 0;
+        final scoreB = scoreById[_contentKey(b)] ?? 0;
         if (scoreA != scoreB) return scoreB.compareTo(scoreA);
         return b.rating.compareTo(a.rating);
       });
 
-      if (!mounted) return;
+      if (!mounted || requestToken != _researchRequestToken) return;
       setState(() => _results = items);
     } catch (e, st) {
       AppLogger.error(
@@ -142,13 +166,24 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
         stackTrace: st,
         name: 'DeepResearchScreen',
       );
-      if (!mounted) return;
+      if (!mounted || requestToken != _researchRequestToken) return;
       setState(() => _error = 'Failed to run deep research');
     } finally {
-      if (mounted) {
+      if (mounted && requestToken == _researchRequestToken) {
         setState(() => _isLoadingResults = false);
       }
     }
+  }
+
+  String _contentKey(UnifiedContent item) => '${item.type}:${item.externalId}';
+
+  void _scheduleDeepResearch() {
+    _researchDebounce?.cancel();
+    _researchDebounce = Timer(const Duration(milliseconds: 220), () {
+      if (mounted) {
+        _runDeepResearch();
+      }
+    });
   }
 
   void _toggleTag(String tag) {
@@ -159,13 +194,13 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
         _selectedTags.add(tag);
       }
     });
-    _runDeepResearch();
+    _scheduleDeepResearch();
   }
 
   void _setType(String type) {
     if (_activeType == type) return;
     setState(() => _activeType = type);
-    _runDeepResearch();
+    _scheduleDeepResearch();
   }
 
   @override
@@ -230,7 +265,10 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
             SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
-                child: Text(_error, style: const TextStyle(color: Colors.red)),
+                child: Text(
+                  _error,
+                  style: const TextStyle(color: Color(0xFFFF7A7A)),
+                ),
               ),
             )
           else if (_selectedTags.isEmpty)
@@ -279,16 +317,16 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
     return Container(
       height: 50,
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: Theme.of(context).cardColor.withValues(alpha: 0.84),
         borderRadius: BorderRadius.circular(14),
       ),
       child: CupertinoSearchTextField(
         controller: _tagSearchController,
-        backgroundColor: const Color(0xFF1C1C1E),
+        backgroundColor: Theme.of(context).cardColor.withValues(alpha: 0.84),
         borderRadius: BorderRadius.circular(14),
-        itemColor: Colors.white54,
+        itemColor: Colors.white70,
         style: const TextStyle(color: Colors.white, fontSize: 14),
-        placeholderStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+        placeholderStyle: const TextStyle(color: Colors.white54, fontSize: 14),
         placeholder: 'Search tags',
         onChanged: _onTagQueryChanged,
         onSuffixTap: () {
@@ -324,14 +362,16 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
-                  color: selected ? Colors.white : const Color(0xFF1C1C1E),
+                  color: selected
+                      ? const Color(0xFF5AA9FF)
+                      : Theme.of(context).cardColor.withValues(alpha: 0.84),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   label,
                   style: TextStyle(
-                    color: selected ? Colors.black : Colors.white,
+                    color: Colors.white,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -356,11 +396,9 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFF0A84FF).withOpacity(0.2),
+            color: AppTheme.primary.withValues(alpha: 0.18),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: const Color(0xFF0A84FF).withOpacity(0.45),
-            ),
+            border: Border.all(color: AppTheme.primary.withValues(alpha: 0.5)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -419,8 +457,8 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: selected
-                  ? const Color(0xFF0A84FF)
-                  : const Color(0xFF1C1C1E),
+                  ? const Color(0xFF5AA9FF)
+                  : Theme.of(context).cardColor.withValues(alpha: 0.84),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: selected ? Colors.transparent : Colors.white12,

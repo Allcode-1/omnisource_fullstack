@@ -11,6 +11,7 @@ import 'data/repositories_impl/analytics_repository_impl.dart';
 import 'data/repositories_impl/content_repository_impl.dart';
 import 'data/repositories_impl/playlist_repository_impl.dart';
 
+// Domain
 import 'domain/repositories/user_repository.dart';
 import 'domain/repositories/analytics_repository.dart';
 import 'domain/repositories/content_repository.dart';
@@ -95,7 +96,23 @@ class OmniSourceApp extends StatelessWidget {
     return MaterialApp(
       title: 'OmniSource AI',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.authTheme,
+      builder: (context, child) {
+        return BlocBuilder<AuthCubit, AuthState>(
+          builder: (context, state) {
+            final useMainTheme = state is AuthAuthenticated;
+            return Theme(
+              data: useMainTheme ? AppTheme.mainTheme : AppTheme.authTheme,
+              child: DecoratedBox(
+                decoration: useMainTheme
+                    ? AppTheme.mainBackgroundDecoration
+                    : const BoxDecoration(color: AppTheme.authBackground),
+                child: child ?? const SizedBox.shrink(),
+              ),
+            );
+          },
+        );
+      },
       home: BlocListener<AuthCubit, AuthState>(
         listener: (context, state) {
           if (state is AuthAuthenticated) {

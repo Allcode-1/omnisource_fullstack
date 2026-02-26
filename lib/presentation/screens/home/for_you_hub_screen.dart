@@ -111,7 +111,7 @@ class _ForYouHubScreenState extends State<ForYouHubScreen> {
                   children: [
                     Text(
                       _error,
-                      style: const TextStyle(color: Colors.redAccent),
+                      style: const TextStyle(color: Color(0xFFFF7A7A)),
                     ),
                     const SizedBox(height: 10),
                     ElevatedButton(
@@ -151,7 +151,7 @@ class _ForYouHubScreenState extends State<ForYouHubScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF0A84FF), Color(0xFF064C93)],
+            colors: [Color(0xFF5AA9FF), Color(0xFF19C2B4)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -201,14 +201,16 @@ class _ForYouHubScreenState extends State<ForYouHubScreen> {
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
-                  color: selected ? Colors.white : const Color(0xFF1C1C1E),
+                  color: selected
+                      ? const Color(0xFF5AA9FF)
+                      : Theme.of(context).cardColor.withValues(alpha: 0.84),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   label,
                   style: TextStyle(
-                    color: selected ? Colors.black : Colors.white,
+                    color: Colors.white,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),

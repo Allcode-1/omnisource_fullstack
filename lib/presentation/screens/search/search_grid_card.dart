@@ -56,7 +56,7 @@ class SearchGridCard extends StatelessWidget {
                           item.imageUrl ?? '',
                           fit: BoxFit.cover,
                           errorBuilder: (_, error, stackTrace) => Container(
-                            color: const Color(0xFF1C1C1E),
+                            color: const Color(0xFF1A2743),
                             child: Icon(
                               _getIconData(item.type),
                               color: Colors.white24,
@@ -77,7 +77,7 @@ class SearchGridCard extends StatelessWidget {
                           child: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.45),
+                              color: const Color(0x7A0A1020),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -97,14 +97,16 @@ class SearchGridCard extends StatelessWidget {
                           child: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.45),
+                              color: const Color(0x7A0A1020),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
                               isLiked
                                   ? CupertinoIcons.heart_fill
                                   : CupertinoIcons.heart,
-                              color: isLiked ? Colors.redAccent : Colors.white,
+                              color: isLiked
+                                  ? const Color(0xFFFF6B7A)
+                                  : Colors.white,
                               size: 18,
                             ),
                           ),
@@ -123,7 +125,7 @@ class SearchGridCard extends StatelessWidget {
                               begin: Alignment.bottomCenter,
                               end: Alignment.topCenter,
                               colors: [
-                                Colors.black.withValues(alpha: 0.6),
+                                const Color(0xCC040914),
                                 Colors.transparent,
                               ],
                             ),

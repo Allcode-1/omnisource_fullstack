@@ -63,8 +63,11 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
                 return Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C1C1E),
+                    color: Theme.of(context).cardColor.withValues(alpha: 0.86),
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
                   ),
                   child: Text(
                     item,

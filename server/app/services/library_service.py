@@ -2,6 +2,7 @@ import asyncio
 from typing import List
 
 from beanie.operators import In
+from pymongo.errors import DuplicateKeyError
 from app.core.redis import redis_client
 from app.models.content_meta import ContentMetadata, Playlist
 from app.models.interaction import Interaction
@@ -66,7 +67,13 @@ class LibraryService:
                 rating=content.rating or 0.0,
                 features_vector=vector
             )
-            await meta.insert()
+            try:
+                await meta.insert()
+            except DuplicateKeyError:
+                logger.info(
+                    "Content metadata already exists (race): ext_id=%s",
+                    content.external_id,
+                )
 
         # 2. check if like alr exists
         existing_like = await Interaction.find_one(
@@ -220,7 +227,13 @@ class LibraryService:
                 image_url=content.image_url,
                 rating=content.rating or 0.0
             )
-            await meta.insert()
+            try:
+                await meta.insert()
+            except DuplicateKeyError:
+                logger.info(
+                    "Content metadata already exists (race): ext_id=%s",
+                    content.external_id,
+                )
 
         # 2. find playlist and add content if not already there
         playlist = await Playlist.get(playlist_id)

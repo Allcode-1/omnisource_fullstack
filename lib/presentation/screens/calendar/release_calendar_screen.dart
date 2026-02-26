@@ -19,6 +19,8 @@ class _ReleaseCalendarScreenState extends State<ReleaseCalendarScreen> {
   bool _showUpcomingOnly = false;
   List<_ReleaseEntry> _entries = const [];
 
+  String _contentKey(UnifiedContent item) => '${item.type}:${item.externalId}';
+
   @override
   void initState() {
     super.initState();
@@ -59,15 +61,15 @@ class _ReleaseCalendarScreenState extends State<ReleaseCalendarScreen> {
 
       final merged = <String, UnifiedContent>{};
       for (final item in responses[0] as List<UnifiedContent>) {
-        merged[item.externalId] = item;
+        merged[_contentKey(item)] = item;
       }
       for (final item in responses[1] as List<UnifiedContent>) {
-        merged[item.externalId] = item;
+        merged[_contentKey(item)] = item;
       }
       final homeMap = responses[2] as Map<String, List<UnifiedContent>>;
       for (final sectionItems in homeMap.values) {
         for (final item in sectionItems) {
-          merged[item.externalId] = item;
+          merged[_contentKey(item)] = item;
         }
       }
 
@@ -214,7 +216,7 @@ class _ReleaseCalendarScreenState extends State<ReleaseCalendarScreen> {
                           margin: const EdgeInsets.only(bottom: 8),
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1C1C1E),
+                            color: const Color(0xFF16213A),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -315,7 +317,7 @@ class _CalendarFilters extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: selected ? Colors.white : const Color(0xFF1C1C1E),
+                      color: selected ? Colors.white : const Color(0xFF16213A),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
@@ -336,7 +338,7 @@ class _CalendarFilters extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF1C1C1E),
+            color: const Color(0xFF16213A),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(

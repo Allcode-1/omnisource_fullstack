@@ -10,6 +10,7 @@ from app.core.database import init_db
 from app.core.redis import redis_client
 from app.core.logging import configure_logging, get_logger
 from app.core.metrics import metrics_registry
+from app.ml.vectorizer import get_vectorizer
 from app.api.routers import actions, auth, content, recommendations, research, user
 
 configure_logging()
@@ -17,12 +18,22 @@ logger = get_logger(__name__)
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
+
+async def _warmup_vectorizer() -> None:
+    try:
+        await asyncio.to_thread(get_vectorizer().get_embedding, "startup warmup")
+        logger.info("Vectorizer warmup completed")
+    except Exception as exc:
+        logger.warning("Vectorizer warmup failed: %s", type(exc).__name__)
+
+
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting %s", settings.PROJECT_NAME)
     await init_db()
     redis_ok = await redis_client.ping()
     logger.info("Redis health: %s", "up" if redis_ok else "down")
+    asyncio.create_task(_warmup_vectorizer())
 
 
 @app.on_event("shutdown")

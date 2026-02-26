@@ -188,7 +188,7 @@ class _PlaylistEditorScreenState extends State<PlaylistEditorScreen> {
               final items = state.playlistItemsById[playlist.id] ?? const [];
               return Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1C1C1E),
+                  color: const Color(0xFF16213A),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: ListTile(

@@ -20,5 +20,5 @@ class SimilarityManager:
 
     @staticmethod
     def genres_to_vector(all_genres: list[str], target_genres: list[str]) -> list[float]:
-        # симпл бинарное кодирование: 1 если жанр есть, 0 если нет
+        # simple bynar code: 1 if true and 0 if false
         return [1.0 if genre in target_genres else 0.0 for genre in all_genres]
