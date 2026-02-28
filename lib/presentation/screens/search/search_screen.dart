@@ -254,13 +254,14 @@ class _SearchScreenState extends State<SearchScreen> {
         IconButton(
           tooltip: 'Save query',
           onPressed: () async {
+            final messenger = ScaffoldMessenger.of(context);
             await context.read<SearchCubit>().saveCurrentQuery(
               _searchController.text.trim(),
             );
             if (!mounted) return;
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Search query saved')));
+            messenger.showSnackBar(
+              const SnackBar(content: Text('Search query saved')),
+            );
           },
           icon: const Icon(CupertinoIcons.bookmark_fill),
         ),
@@ -281,7 +282,7 @@ class _SearchScreenState extends State<SearchScreen> {
         page: const ReleaseCalendarScreen(),
       ),
       (
-        label: 'Comparison',
+        label: 'Compare 2-3',
         icon: CupertinoIcons.rectangle_split_3x1_fill,
         page: const ContentComparisonScreen(),
       ),

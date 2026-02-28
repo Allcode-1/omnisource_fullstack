@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../bloc/library/library_cubit.dart';
 import '../../bloc/library/library_state.dart';
+import 'playlist_detail_screen.dart';
 
 class PlaylistEditorScreen extends StatefulWidget {
   const PlaylistEditorScreen({super.key});
@@ -22,33 +23,35 @@ class _PlaylistEditorScreenState extends State<PlaylistEditorScreen> {
   Future<void> _showCreateDialog() async {
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
-    await showDialog<void>(
+    await showCupertinoDialog<void>(
       context: context,
       builder: (ctx) {
-        return AlertDialog(
+        return CupertinoAlertDialog(
           title: const Text('Create Playlist'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(labelText: 'Title'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description (optional)',
+          content: Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CupertinoTextField(
+                  controller: titleController,
+                  placeholder: 'Title',
+                  autofocus: true,
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                CupertinoTextField(
+                  controller: descriptionController,
+                  placeholder: 'Description (optional)',
+                ),
+              ],
+            ),
           ),
           actions: [
-            TextButton(
+            CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancel'),
             ),
-            ElevatedButton(
+            CupertinoDialogAction(
               onPressed: () async {
                 final title = titleController.text.trim();
                 if (title.isEmpty) return;
@@ -73,33 +76,35 @@ class _PlaylistEditorScreenState extends State<PlaylistEditorScreen> {
     final descriptionController = TextEditingController(
       text: description ?? '',
     );
-    await showDialog<void>(
+    await showCupertinoDialog<void>(
       context: context,
       builder: (ctx) {
-        return AlertDialog(
+        return CupertinoAlertDialog(
           title: const Text('Edit Playlist'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(labelText: 'Title'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description (optional)',
+          content: Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CupertinoTextField(
+                  controller: titleController,
+                  placeholder: 'Title',
+                  autofocus: true,
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                CupertinoTextField(
+                  controller: descriptionController,
+                  placeholder: 'Description (optional)',
+                ),
+              ],
+            ),
           ),
           actions: [
-            TextButton(
+            CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancel'),
             ),
-            ElevatedButton(
+            CupertinoDialogAction(
               onPressed: () async {
                 final nextTitle = titleController.text.trim();
                 if (nextTitle.isEmpty) return;
@@ -121,46 +126,40 @@ class _PlaylistEditorScreenState extends State<PlaylistEditorScreen> {
   }
 
   Future<void> _deletePlaylist(String id) async {
-    final confirmed = await showDialog<bool>(
+    await showCupertinoModalPopup<void>(
       context: context,
       builder: (ctx) {
-        return AlertDialog(
+        return CupertinoActionSheet(
           title: const Text('Delete Playlist'),
-          content: const Text('This action cannot be undone.'),
+          message: const Text('This action cannot be undone.'),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
+            CupertinoActionSheetAction(
+              isDestructiveAction: true,
+              onPressed: () async {
+                await context.read<LibraryCubit>().deletePlaylist(id);
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+              },
               child: const Text('Delete'),
             ),
           ],
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
         );
       },
     );
-    if (confirmed == true) {
-      await context.read<LibraryCubit>().deletePlaylist(id);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Playlist Editor'),
-        actions: [
-          IconButton(
-            onPressed: _showCreateDialog,
-            icon: const Icon(CupertinoIcons.plus),
-          ),
-        ],
-      ),
       body: BlocBuilder<LibraryCubit, LibraryState>(
         builder: (context, state) {
           if (state is LibraryLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CupertinoActivityIndicator());
           }
           if (state is LibraryError) {
             return Center(
@@ -173,61 +172,192 @@ class _PlaylistEditorScreenState extends State<PlaylistEditorScreen> {
           if (state is! LibraryLoaded) {
             return const SizedBox.shrink();
           }
-          if (state.playlists.isEmpty) {
-            return const Center(
-              child: Text(
-                'No playlists yet',
-                style: TextStyle(color: Colors.white54),
-              ),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
-            itemBuilder: (context, index) {
-              final playlist = state.playlists[index];
-              final items = state.playlistItemsById[playlist.id] ?? const [];
-              return Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF16213A),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: ListTile(
-                  title: Text(playlist.title),
-                  subtitle: Text('${items.length} items'),
-                  trailing: Wrap(
-                    spacing: 10,
-                    children: [
-                      GestureDetector(
-                        onTap: () => _showEditDialog(
-                          playlistId: playlist.id,
-                          title: playlist.title,
-                          description: playlist.description,
-                        ),
-                        child: const Icon(CupertinoIcons.pencil, size: 18),
-                      ),
-                      GestureDetector(
-                        onTap: () => _deletePlaylist(playlist.id),
-                        child: const Icon(
-                          CupertinoIcons.delete,
-                          size: 18,
-                          color: Colors.redAccent,
-                        ),
-                      ),
-                    ],
+
+          final totalItems = state.playlists.fold<int>(
+            0,
+            (sum, p) => sum + (state.playlistItemsById[p.id]?.length ?? 0),
+          );
+
+          return CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              CupertinoSliverNavigationBar(
+                largeTitle: Text(
+                  'Playlist Editor',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              );
-            },
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemCount: state.playlists.length,
+                border: null,
+                backgroundColor: theme.colorScheme.surface.withValues(
+                  alpha: 0.86,
+                ),
+                trailing: CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: _showCreateDialog,
+                  child: const Icon(CupertinoIcons.plus_circle, size: 28),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface.withValues(alpha: 0.84),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _Metric(
+                            title: 'Playlists',
+                            value: '${state.playlists.length}',
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _Metric(title: 'Items', value: '$totalItems'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              if (state.playlists.isEmpty)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Text(
+                      'No playlists yet',
+                      style: TextStyle(color: Colors.white60),
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 110),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final playlist = state.playlists[index];
+                      final items =
+                          state.playlistItemsById[playlist.id] ?? const [];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface.withValues(
+                              alpha: 0.84,
+                            ),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.08),
+                            ),
+                          ),
+                          child: ListTile(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                CupertinoPageRoute(
+                                  builder: (_) => PlaylistDetailScreen(
+                                    playlistId: playlist.id,
+                                    title: playlist.title,
+                                    description: playlist.description,
+                                    initialItems: items,
+                                  ),
+                                ),
+                              );
+                            },
+                            title: Text(
+                              playlist.title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              playlist.description?.trim().isNotEmpty == true
+                                  ? '${items.length} items • ${playlist.description}'
+                                  : '${items.length} items',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                GestureDetector(
+                                  onTap: () => _showEditDialog(
+                                    playlistId: playlist.id,
+                                    title: playlist.title,
+                                    description: playlist.description,
+                                  ),
+                                  child: const Icon(
+                                    CupertinoIcons.pencil,
+                                    size: 18,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                GestureDetector(
+                                  onTap: () => _deletePlaylist(playlist.id),
+                                  child: const Icon(
+                                    CupertinoIcons.delete,
+                                    size: 18,
+                                    color: Colors.redAccent,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }, childCount: state.playlists.length),
+                  ),
+                ),
+            ],
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreateDialog,
-        icon: const Icon(CupertinoIcons.plus),
-        label: const Text('New Playlist'),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+          child: CupertinoButton.filled(
+            onPressed: _showCreateDialog,
+            child: const Text('New Playlist'),
+          ),
+        ),
       ),
+    );
+  }
+}
+
+class _Metric extends StatelessWidget {
+  final String title;
+  final String value;
+
+  const _Metric({required this.title, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.56),
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+        ),
+      ],
     );
   }
 }

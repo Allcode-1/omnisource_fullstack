@@ -75,7 +75,7 @@ class HomeCubit extends Cubit<HomeState> {
       emit(state.copyWith(error: "Ошибка загрузки: ${e.toString()}"));
     } finally {
       if (!isClosed && token == _loadToken && state.isLoading) {
-        emit(state.copyWith(isLoading: false));
+        emit(state.copyWith(isLoading: false, error: state.error));
       }
     }
   }

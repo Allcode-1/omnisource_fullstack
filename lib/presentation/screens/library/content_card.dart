@@ -1,5 +1,13 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../../domain/entities/unified_content.dart';
+import '../../../domain/repositories/analytics_repository.dart';
+import '../../bloc/library/library_cubit.dart';
+import '../../bloc/library/library_state.dart';
+import '../../widgets/content_quick_actions.dart';
+import '../home/detail_screen.dart';
 
 class ContentCard extends StatelessWidget {
   final UnifiedContent item;
@@ -7,51 +15,152 @@ class ContentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              image: DecorationImage(
-                image: NetworkImage(item.imageUrl ?? ''),
-                fit: BoxFit.cover,
-              ),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0xAA020816),
-                  blurRadius: 12,
-                  offset: Offset(0, 6),
+    final theme = Theme.of(context);
+    return BlocBuilder<LibraryCubit, LibraryState>(
+      builder: (context, state) {
+        final isLiked = state is LibraryLoaded
+            ? state.favorites.any((fav) => fav.externalId == item.externalId)
+            : false;
+
+        return GestureDetector(
+          onLongPress: () =>
+              ContentQuickActions.show(context, item, source: 'library'),
+          onTap: () {
+            context.read<AnalyticsRepository>().trackEvent(
+              type: 'view',
+              extId: item.externalId,
+              contentType: item.type,
+              meta: {
+                'source': 'library_content_card',
+                'title': item.title,
+                'image_url': item.imageUrl,
+                'rating': item.rating,
+                'release_date': item.releaseDate,
+                'genres': item.genres,
+              },
+            );
+            Navigator.push(
+              context,
+              CupertinoPageRoute(builder: (_) => DetailScreen(content: item)),
+            );
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: Image.network(
+                          item.imageUrl ?? '',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: theme.cardColor.withValues(alpha: 0.92),
+                              child: const Icon(
+                                CupertinoIcons.photo,
+                                color: Colors.white30,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [
+                                Colors.black.withValues(alpha: 0.35),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: _CircleAction(
+                          icon: CupertinoIcons.ellipsis,
+                          onTap: () => ContentQuickActions.show(
+                            context,
+                            item,
+                            source: 'library',
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: _CircleAction(
+                          icon: isLiked
+                              ? CupertinoIcons.heart_fill
+                              : CupertinoIcons.heart,
+                          iconColor: isLiked
+                              ? const Color(0xFFEF7A8B)
+                              : Colors.white,
+                          onTap: () =>
+                              context.read<LibraryCubit>().toggleFavorite(item),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-            child: item.imageUrl == null || item.imageUrl!.isEmpty
-                ? Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1A2743),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Center(
-                      child: Icon(Icons.broken_image, color: Colors.white38),
-                    ),
-                  )
-                : null,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                item.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                item.subtitle ?? item.type,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.55),
+                ),
+              ),
+            ],
           ),
+        );
+      },
+    );
+  }
+}
+
+class _CircleAction extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final VoidCallback onTap;
+
+  const _CircleAction({
+    required this.icon,
+    this.iconColor = Colors.white,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: const BoxDecoration(
+          color: Color(0x7A080D14),
+          shape: BoxShape.circle,
         ),
-        const SizedBox(height: 8),
-        Text(
-          item.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-        ),
-        Text(
-          item.subtitle ?? item.type,
-          maxLines: 1,
-          style: const TextStyle(color: Colors.white60, fontSize: 12),
-        ),
-      ],
+        child: Icon(icon, size: 17, color: iconColor),
+      ),
     );
   }
 }

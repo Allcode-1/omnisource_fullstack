@@ -125,7 +125,7 @@ class _ContentComparisonScreenState extends State<ContentComparisonScreen> {
             child: Padding(
               padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Text(
-                'Select up to 3 titles and compare genres, ratings and relevance',
+                '1) Tap 2-3 cards below. 2) Comparison Matrix appears automatically.',
                 style: TextStyle(color: Colors.white54, fontSize: 14),
               ),
             ),
@@ -282,8 +282,8 @@ class _ComparisonHeader extends StatelessWidget {
           Expanded(
             child: Text(
               selectedCount < 2
-                  ? 'Select at least 2 titles for comparison'
-                  : 'Comparison is ready (${selectedCount.toString()} selected)',
+                  ? 'Choose at least 2 cards. Matrix will appear right here.'
+                  : 'Matrix is ready (${selectedCount.toString()} selected). Tap a selected card to remove it.',
               style: const TextStyle(fontSize: 13),
             ),
           ),
@@ -395,6 +395,7 @@ class _CandidateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSelected = selectedIndex >= 0;
+    final imageUrl = (item.imageUrl ?? '').trim();
     return GestureDetector(
       onTap: disabled ? null : onTap,
       child: Opacity(
@@ -419,21 +420,15 @@ class _CandidateCard extends StatelessWidget {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.network(
-                        item.imageUrl ?? '',
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, error, stackTrace) {
-                          return Container(
-                            color: Colors.black26,
-                            alignment: Alignment.center,
-                            child: Icon(
-                              _iconByType(item.type),
-                              color: Colors.white24,
-                              size: 34,
-                            ),
-                          );
-                        },
-                      ),
+                      imageUrl.isNotEmpty
+                          ? Image.network(
+                              imageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, error, stackTrace) {
+                                return _buildImageFallback();
+                              },
+                            )
+                          : _buildImageFallback(),
                       Positioned(
                         top: 8,
                         right: 8,
@@ -489,6 +484,14 @@ class _CandidateCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildImageFallback() {
+    return Container(
+      color: Colors.black26,
+      alignment: Alignment.center,
+      child: Icon(_iconByType(item.type), color: Colors.white24, size: 34),
     );
   }
 }

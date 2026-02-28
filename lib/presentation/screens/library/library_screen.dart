@@ -37,55 +37,79 @@ class _LibraryScreenState extends State<LibraryScreen> {
     bool isFavorites = false,
     Color? iconColor,
   }) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: const Color(0xFF1E2B49),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: iconColor ?? const Color(0xFF7AC9FF)),
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text("${items.length} items"),
-      trailing: isFavorites
-          ? const Icon(CupertinoIcons.right_chevron, size: 18)
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    if (playlistId == null) return;
-                    _showPlaylistActions(
-                      playlistId: playlistId,
-                      currentTitle: title,
-                      currentDescription: description,
-                    );
-                  },
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Icon(CupertinoIcons.ellipsis_circle, size: 20),
-                  ),
-                ),
-                const Icon(CupertinoIcons.right_chevron, size: 18),
-              ],
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        leading: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.95,
             ),
-      onTap: () {
-        Navigator.push(
-          context,
-          CupertinoPageRoute(
-            builder: (_) => PlaylistDetailScreen(
-              playlistId: playlistId,
-              title: title,
-              description: description,
-              initialItems: items,
-              isFavorites: isFavorites,
-            ),
+            borderRadius: BorderRadius.circular(10),
           ),
-        );
-      },
+          child: Icon(
+            icon,
+            color: iconColor ?? Colors.white.withValues(alpha: 0.82),
+            size: 19,
+          ),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+        ),
+        subtitle: Text(
+          description?.trim().isNotEmpty == true
+              ? '${items.length} items • ${description!.trim()}'
+              : "${items.length} items",
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: isFavorites
+            ? const Icon(CupertinoIcons.right_chevron, size: 18)
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      if (playlistId == null) return;
+                      _showPlaylistActions(
+                        playlistId: playlistId,
+                        currentTitle: title,
+                        currentDescription: description,
+                      );
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Icon(CupertinoIcons.ellipsis_circle, size: 20),
+                    ),
+                  ),
+                  const Icon(CupertinoIcons.right_chevron, size: 18),
+                ],
+              ),
+        onTap: () {
+          Navigator.push(
+            context,
+            CupertinoPageRoute(
+              builder: (_) => PlaylistDetailScreen(
+                playlistId: playlistId,
+                title: title,
+                description: description,
+                initialItems: items,
+                isFavorites: isFavorites,
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -305,6 +329,58 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       ),
                     ),
                   ),
+                  if (state is LibraryLoaded)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surface.withValues(alpha: 0.82),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.07),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _buildMiniMetric(
+                                  'Favorites',
+                                  state.favorites.length.toString(),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildMiniMetric(
+                                  'Playlists',
+                                  state.playlists.length.toString(),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildMiniMetric(
+                                  'Library',
+                                  (state.favorites.length +
+                                          state.playlists.fold<int>(
+                                            0,
+                                            (sum, p) =>
+                                                sum +
+                                                (state
+                                                        .playlistItemsById[p.id]
+                                                        ?.length ??
+                                                    0),
+                                          ))
+                                      .toString(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
 
                   if (state is LibraryLoading)
                     const SliverFillRemaining(
@@ -326,8 +402,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             items: state.favorites,
                             isFavorites: true,
                           ),
-
-                          const Divider(color: Colors.white10, height: 1),
 
                           ...state.playlists.map(
                             (playlist) => _buildPlaylistTile(
@@ -360,8 +434,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       child: Text(
                         "Recently Added",
                         style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 21,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -425,9 +499,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
             children: [
               Text(
                 "Library",
-                style: Theme.of(
-                  context,
-                ).textTheme.headlineSmall?.copyWith(fontSize: 30),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const Spacer(),
               CupertinoButton(
@@ -453,12 +528,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 ),
                 child: CircleAvatar(
                   radius: 18,
-                  backgroundColor: const Color(0xFF1E2A47),
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
                   child: Text(
                     safeLetter,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -467,6 +544,27 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildMiniMetric(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.56),
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+        ),
+      ],
     );
   }
 }
@@ -484,12 +582,13 @@ class _LibraryToolButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A2743).withValues(alpha: 0.84),
+          color: theme.colorScheme.surface.withValues(alpha: 0.86),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
@@ -502,7 +601,7 @@ class _LibraryToolButton extends StatelessWidget {
                 title,
                 style: const TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),

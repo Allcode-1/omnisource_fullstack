@@ -1,0 +1,131 @@
+import json
+import logging
+import sys
+
+from app.core import email as email_module
+from app.core import logging as logging_module
+
+
+class _FakeSMTP:
+    def __init__(self, host: str, port: int) -> None:
+        self.host = host
+        self.port = port
+        self.started_tls = False
+        self.logged_in = None
+        self.sent = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def starttls(self) -> None:
+        self.started_tls = True
+
+    def login(self, user: str, password: str) -> None:
+        self.logged_in = (user, password)
+
+    def sendmail(self, sender: str, recipient: str, message: str) -> None:
+        self.sent = (sender, recipient, message)
+
+
+def test_send_reset_password_email_uses_smtp(monkeypatch) -> None:
+    fake_smtp = _FakeSMTP("smtp.test", 2525)
+
+    def fake_smtp_factory(host: str, port: int):
+        assert host == email_module.settings.SMTP_HOST
+        assert port == email_module.settings.SMTP_PORT
+        return fake_smtp
+
+    monkeypatch.setattr(email_module.smtplib, "SMTP", fake_smtp_factory)
+    email_module.send_reset_password_email("user@test.dev", "abc-token")
+
+    assert fake_smtp.started_tls is True
+    assert fake_smtp.logged_in == (
+        email_module.settings.SMTP_USER,
+        email_module.settings.SMTP_PASSWORD,
+    )
+    assert fake_smtp.sent is not None
+    assert fake_smtp.sent[0] == email_module.settings.EMAILS_FROM_EMAIL
+    assert fake_smtp.sent[1] == "user@test.dev"
+    assert "abc-token" in fake_smtp.sent[2]
+
+
+def test_send_reset_password_email_logs_exception_on_failure(monkeypatch) -> None:
+    class _BrokenSMTP:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def starttls(self) -> None:
+            raise RuntimeError("smtp failed")
+
+    captured = {"called": False}
+
+    def fake_exception(message: str, *args) -> None:
+        captured["called"] = True
+        assert "Error sending reset email" in message
+
+    monkeypatch.setattr(email_module.smtplib, "SMTP", _BrokenSMTP)
+    monkeypatch.setattr(email_module.logger, "exception", fake_exception)
+
+    email_module.send_reset_password_email("user@test.dev", "abc-token")
+    assert captured["called"] is True
+
+
+def test_json_formatter_renders_extra_fields_and_exception() -> None:
+    formatter = logging_module.JsonFormatter()
+
+    try:
+        raise ValueError("boom")
+    except ValueError:
+        record = logging.LogRecord(
+            name="app.test",
+            level=logging.ERROR,
+            pathname=__file__,
+            lineno=10,
+            msg="something failed",
+            args=(),
+            exc_info=sys.exc_info(),
+        )
+        record.request_id = "r1"
+        record.method = "GET"
+        record.path = "/health"
+        record.status = 500
+        record.duration_ms = 12.5
+        payload = json.loads(formatter.format(record))
+
+    assert payload["logger"] == "app.test"
+    assert payload["message"] == "something failed"
+    assert payload["request_id"] == "r1"
+    assert payload["method"] == "GET"
+    assert payload["path"] == "/health"
+    assert payload["status"] == 500
+    assert payload["duration_ms"] == 12.5
+    assert "exception" in payload
+
+
+def test_configure_logging_calls_dict_config(monkeypatch) -> None:
+    captured = {}
+
+    def fake_dict_config(config: dict) -> None:
+        captured["config"] = config
+
+    monkeypatch.setattr(logging_module, "dictConfig", fake_dict_config)
+    logging_module.configure_logging()
+
+    config = captured["config"]
+    assert config["version"] == 1
+    assert "console" in config["handlers"]
+    assert config["root"]["handlers"] == ["console"]
+
+
+def test_get_logger_returns_named_logger() -> None:
+    logger = logging_module.get_logger("custom.logger")
+    assert logger.name == "custom.logger"

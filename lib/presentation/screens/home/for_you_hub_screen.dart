@@ -2,8 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/content_repository.dart';
+import '../../bloc/home/home_cubit.dart';
 import '../../bloc/library/library_cubit.dart';
 import '../search/search_grid_card.dart';
 
@@ -23,18 +25,58 @@ class _ForYouHubScreenState extends State<ForYouHubScreen> {
   List<UnifiedContent> _trending = const [];
   Map<String, List<UnifiedContent>> _homeMap = const {};
 
+  bool get _hasData =>
+      _recommendations.isNotEmpty ||
+      _trending.isNotEmpty ||
+      _homeMap.isNotEmpty;
+
   @override
   void initState() {
     super.initState();
-    context.read<LibraryCubit>().loadLibraryData();
-    _load();
+    context.read<LibraryCubit>().loadLibraryData(showLoader: false);
+    _hydrateFromHome();
+    _load(silent: _hasData);
   }
 
-  Future<void> _load() async {
+  void _hydrateFromHome() {
+    final homeState = context.read<HomeCubit>().state;
+    if (homeState.recommendations.isEmpty &&
+        homeState.trending.isEmpty &&
+        homeState.homeMap.isEmpty) {
+      return;
+    }
+
     setState(() {
-      _isLoading = true;
-      _error = '';
+      _activeType = _typeForCategory(homeState.category);
+      _recommendations = homeState.recommendations;
+      _trending = homeState.trending;
+      _homeMap = homeState.homeMap;
+      _isLoading = false;
     });
+  }
+
+  String _typeForCategory(ContentCategory category) {
+    switch (category) {
+      case ContentCategory.movie:
+        return 'movie';
+      case ContentCategory.book:
+        return 'book';
+      case ContentCategory.music:
+        return 'music';
+    }
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    final hadData = _hasData;
+    if (!silent || !hadData) {
+      setState(() {
+        _isLoading = true;
+        _error = '';
+      });
+    } else {
+      setState(() => _error = '');
+    }
+
     try {
       final repo = context.read<ContentRepository>();
       final type = _activeType == 'all' ? null : _activeType;
@@ -49,9 +91,11 @@ class _ForYouHubScreenState extends State<ForYouHubScreen> {
         _trending = results[1] as List<UnifiedContent>;
         _homeMap = results[2] as Map<String, List<UnifiedContent>>;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Failed to load for-you feed');
+      if (!hadData) {
+        setState(() => _error = 'Failed to load for-you feed');
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -62,47 +106,52 @@ class _ForYouHubScreenState extends State<ForYouHubScreen> {
   void _setType(String type) {
     if (_activeType == type) return;
     setState(() => _activeType = type);
-    _load();
+    _load(silent: _hasData);
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          const SliverToBoxAdapter(child: SizedBox(height: 56)),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'For You Hub',
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
+          CupertinoSliverNavigationBar(
+            largeTitle: Text(
+              'For You',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
               ),
             ),
+            border: null,
+            backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.84),
           ),
-          const SliverToBoxAdapter(
+          CupertinoSliverRefreshControl(onRefresh: () => _load()),
+          SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
               child: Text(
                 'Personalized recommendations with context',
-                style: TextStyle(color: Colors.white54, fontSize: 14),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.55),
+                  fontSize: 14,
+                ),
               ),
             ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 14)),
+          const SliverToBoxAdapter(child: SizedBox(height: 12)),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _buildTypeFilters(),
+              child: _buildTypeFilters(theme),
             ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 10)),
-          if (_isLoading)
+          if (_isLoading && !_hasData)
             const SliverFillRemaining(
               child: Center(child: CupertinoActivityIndicator()),
             )
-          else if (_error.isNotEmpty)
+          else if (_error.isNotEmpty && !_hasData)
             SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
@@ -125,16 +174,23 @@ class _ForYouHubScreenState extends State<ForYouHubScreen> {
           else
             SliverList(
               delegate: SliverChildListDelegate([
-                _buildHeroInsight(),
-                _buildSectionGrid('Recommended For You', _recommendations),
-                _buildSectionGrid('Trending Match', _trending),
+                _buildHeroInsight(theme),
+                _buildSectionGrid(
+                  theme,
+                  'Recommended For You',
+                  _recommendations,
+                ),
+                _buildSectionGrid(theme, 'Trending Match', _trending),
                 ..._homeMap.entries
                     .where(
                       (entry) =>
                           entry.key != 'For You' && entry.key != 'Trending Now',
                     )
                     .take(3)
-                    .map((entry) => _buildSectionGrid(entry.key, entry.value)),
+                    .map(
+                      (entry) =>
+                          _buildSectionGrid(theme, entry.key, entry.value),
+                    ),
                 const SizedBox(height: 90),
               ]),
             ),
@@ -143,30 +199,34 @@ class _ForYouHubScreenState extends State<ForYouHubScreen> {
     );
   }
 
-  Widget _buildHeroInsight() {
+  Widget _buildHeroInsight(ThemeData theme) {
     final count = _recommendations.length;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF5AA9FF), Color(0xFF19C2B4)],
+          gradient: LinearGradient(
+            colors: [
+              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.88),
+              AppTheme.surfaceAlt.withValues(alpha: 0.92),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
         child: Row(
           children: [
-            const Icon(CupertinoIcons.sparkles, size: 28),
+            const Icon(CupertinoIcons.sparkles, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 'You have $count curated items in your feed now.',
                 style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
@@ -176,7 +236,7 @@ class _ForYouHubScreenState extends State<ForYouHubScreen> {
     );
   }
 
-  Widget _buildTypeFilters() {
+  Widget _buildTypeFilters(ThemeData theme) {
     final filters = const [
       ('All', 'all'),
       ('Movies', 'movie'),
@@ -202,16 +262,21 @@ class _ForYouHubScreenState extends State<ForYouHubScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
                   color: selected
-                      ? const Color(0xFF5AA9FF)
-                      : Theme.of(context).cardColor.withValues(alpha: 0.84),
+                      ? theme.colorScheme.surfaceContainerHighest
+                      : theme.colorScheme.surface.withValues(alpha: 0.84),
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(
+                      alpha: selected ? 0.14 : 0.08,
+                    ),
+                  ),
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   label,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
                     fontSize: 13,
                   ),
                 ),
@@ -223,7 +288,11 @@ class _ForYouHubScreenState extends State<ForYouHubScreen> {
     );
   }
 
-  Widget _buildSectionGrid(String title, List<UnifiedContent> items) {
+  Widget _buildSectionGrid(
+    ThemeData theme,
+    String title,
+    List<UnifiedContent> items,
+  ) {
     if (items.isEmpty) return const SizedBox.shrink();
     final shortlist = items.take(6).toList();
     return Padding(
@@ -233,7 +302,10 @@ class _ForYouHubScreenState extends State<ForYouHubScreen> {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 12),
           GridView.builder(

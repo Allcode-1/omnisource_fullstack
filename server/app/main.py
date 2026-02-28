@@ -67,6 +67,28 @@ async def request_context_middleware(request: Request, call_next):
     try:
         response = await call_next(request)
         status = response.status_code
+    except asyncio.CancelledError:
+        duration_ms = (time.perf_counter() - start) * 1000
+        status = 499
+        metrics_registry.observe(
+            request.method,
+            request.url.path,
+            status,
+            duration_ms,
+        )
+        logger.info(
+            "request_cancelled",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status": status,
+                "duration_ms": round(duration_ms, 2),
+            },
+        )
+        response = Response(status_code=status)
+        response.headers["x-request-id"] = request_id
+        return response
     except Exception:
         duration_ms = (time.perf_counter() - start) * 1000
         metrics_registry.observe(

@@ -9,6 +9,7 @@ from app.schemas.analytics import (
 from app.services.analytics_service import AnalyticsService
 from app.services.library_service import LibraryService
 from app.api.deps import get_current_user 
+from app.models.content_meta import Playlist
 from app.models.user import User
 
 router = APIRouter(prefix="/actions", tags=["Actions"])

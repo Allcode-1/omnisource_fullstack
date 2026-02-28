@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/analytics_repository.dart';
 import '../../../domain/repositories/content_repository.dart';
@@ -13,8 +14,8 @@ import '../../bloc/library/library_state.dart';
 import '../search/search_grid_card.dart';
 
 class DetailScreen extends StatefulWidget {
-  static const Color _bgColor = Color(0xFF0B1220);
-  static const Color _surfaceColor = Color(0xFF16213A);
+  static const Color _bgColor = AppTheme.appBackground;
+  static const Color _surfaceColor = AppTheme.surface;
 
   final UnifiedContent content;
   const DetailScreen({super.key, required this.content});
@@ -29,6 +30,7 @@ class _DetailScreenState extends State<DetailScreen>
   late final DateTime _openedAt;
 
   bool _loadingRelated = true;
+  String _relatedError = '';
   List<UnifiedContent> _related = const [];
 
   UnifiedContent get content => widget.content;
@@ -50,31 +52,35 @@ class _DetailScreenState extends State<DetailScreen>
   }
 
   Future<void> _trackOpenDetail() async {
-    await context.read<AnalyticsRepository>().trackEvent(
-      type: 'open_detail',
-      extId: content.externalId,
-      contentType: content.type,
-      meta: {
-        'title': content.title,
-        'subtitle': content.subtitle,
-        'image_url': content.imageUrl,
-        'rating': content.rating,
-        'release_date': content.releaseDate,
-        'genres': content.genres,
-        'description': content.description,
-      },
-    );
+    try {
+      await context.read<AnalyticsRepository>().trackEvent(
+        type: 'open_detail',
+        extId: content.externalId,
+        contentType: content.type,
+        meta: {
+          'title': content.title,
+          'subtitle': content.subtitle,
+          'image_url': content.imageUrl,
+          'rating': content.rating,
+          'release_date': content.releaseDate,
+          'genres': content.genres,
+          'description': content.description,
+        },
+      );
+    } catch (_) {}
   }
 
   Future<void> _trackDwellTime() async {
-    final seconds = DateTime.now().difference(_openedAt).inSeconds.toDouble();
-    await context.read<AnalyticsRepository>().trackEvent(
-      type: 'dwell_time',
-      extId: content.externalId,
-      contentType: content.type,
-      weight: seconds > 0 ? seconds / 60 : 0.0,
-      meta: {'seconds': seconds},
-    );
+    try {
+      final seconds = DateTime.now().difference(_openedAt).inSeconds.toDouble();
+      await context.read<AnalyticsRepository>().trackEvent(
+        type: 'dwell_time',
+        extId: content.externalId,
+        contentType: content.type,
+        weight: seconds > 0 ? seconds / 60 : 0.0,
+        meta: {'seconds': seconds},
+      );
+    } catch (_) {}
   }
 
   Future<void> _loadRelated() async {
@@ -83,10 +89,17 @@ class _DetailScreenState extends State<DetailScreen>
       final data = await repo.getRecommendations(type: content.type);
       if (!mounted) return;
       setState(() {
+        _relatedError = '';
         _related = data
             .where((item) => item.externalId != content.externalId)
             .take(10)
             .toList();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _related = const [];
+        _relatedError = 'Failed to load related content';
       });
     } finally {
       if (mounted) {
@@ -147,7 +160,7 @@ class _DetailScreenState extends State<DetailScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Create a playlist first'),
-          backgroundColor: Color(0xFF26365B),
+          backgroundColor: AppTheme.surfaceAlt,
         ),
       );
       return;
@@ -168,7 +181,7 @@ class _DetailScreenState extends State<DetailScreen>
                 padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
                 child: Text(
                   'Add To Playlist',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
               ),
               ...state.playlists.map(
@@ -242,7 +255,7 @@ class _DetailScreenState extends State<DetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = content.imageUrl ?? '';
+    final imageUrl = (content.imageUrl ?? '').trim();
 
     return Scaffold(
       backgroundColor: DetailScreen._bgColor,
@@ -271,7 +284,7 @@ class _DetailScreenState extends State<DetailScreen>
               ),
               Positioned.fill(
                 child: Container(
-                  color: DetailScreen._bgColor.withOpacity(0.78),
+                  color: DetailScreen._bgColor.withValues(alpha: 0.78),
                 ),
               ),
               CustomScrollView(
@@ -335,7 +348,7 @@ class _DetailScreenState extends State<DetailScreen>
                             content.title,
                             style: const TextStyle(
                               fontSize: 28,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w700,
                               color: Colors.white,
                             ),
                           ),
@@ -364,13 +377,24 @@ class _DetailScreenState extends State<DetailScreen>
                                 _MetaChip(label: content.releaseDate!),
                             ],
                           ),
+                          if (content.genres.isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: content.genres
+                                  .take(5)
+                                  .map((genre) => _MetaChip(label: '#$genre'))
+                                  .toList(),
+                            ),
+                          ],
                           const SizedBox(height: 18),
                           TabBar(
                             controller: _tabController,
                             isScrollable: true,
                             labelColor: Colors.white,
                             unselectedLabelColor: Colors.white54,
-                            indicatorColor: const Color(0xFF5AA9FF),
+                            indicatorColor: AppTheme.primary,
                             tabs: const [
                               Tab(text: 'Overview'),
                               Tab(text: 'Related'),
@@ -390,39 +414,6 @@ class _DetailScreenState extends State<DetailScreen>
                                 _buildExplainTab(),
                               ],
                             ),
-                          ),
-                          const SizedBox(height: 14),
-                          const Text(
-                            'Related Content',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          SizedBox(
-                            height: 250,
-                            child: _loadingRelated
-                                ? const Center(
-                                    child: CupertinoActivityIndicator(),
-                                  )
-                                : ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: _related.length.clamp(0, 8),
-                                    itemBuilder: (context, index) {
-                                      return SizedBox(
-                                        width: 165,
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(
-                                            right: 12,
-                                          ),
-                                          child: SearchGridCard(
-                                            item: _related[index],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
                           ),
                         ],
                       ),
@@ -444,7 +435,7 @@ class _DetailScreenState extends State<DetailScreen>
         children: [
           const Text(
             'Description',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(
@@ -473,7 +464,7 @@ class _DetailScreenState extends State<DetailScreen>
             height: 50,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF5AA9FF),
+                backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -492,6 +483,14 @@ class _DetailScreenState extends State<DetailScreen>
   Widget _buildRelatedTab() {
     if (_loadingRelated) {
       return const Center(child: CupertinoActivityIndicator());
+    }
+    if (_relatedError.isNotEmpty) {
+      return Center(
+        child: Text(
+          _relatedError,
+          style: const TextStyle(color: Color(0xFFFF7A7A)),
+        ),
+      );
     }
     if (_related.isEmpty) {
       return const Center(
@@ -525,7 +524,7 @@ class _DetailScreenState extends State<DetailScreen>
       itemBuilder: (context, index) {
         final item = links[index];
         return ListTile(
-          tileColor: const Color(0xFF16213A),
+          tileColor: DetailScreen._surfaceColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -545,7 +544,7 @@ class _DetailScreenState extends State<DetailScreen>
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF16213A),
+        color: DetailScreen._surfaceColor,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -553,7 +552,7 @@ class _DetailScreenState extends State<DetailScreen>
         children: [
           const Text(
             'Recommendation Explain',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 10),
           Text(
@@ -561,7 +560,7 @@ class _DetailScreenState extends State<DetailScreen>
             style: const TextStyle(color: Colors.white70, height: 1.5),
           ),
           const SizedBox(height: 14),
-          const Text('Signals', style: TextStyle(fontWeight: FontWeight.w700)),
+          const Text('Signals', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           const Text('• Content type affinity'),
           const Text('• Similarity score from interaction vectors'),

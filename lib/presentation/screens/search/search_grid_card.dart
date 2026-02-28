@@ -15,6 +15,7 @@ class SearchGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imageUrl = (item.imageUrl ?? '').trim();
     return BlocBuilder<LibraryCubit, LibraryState>(
       builder: (context, state) {
         final isLiked = state is LibraryLoaded
@@ -52,18 +53,14 @@ class SearchGridCard extends StatelessWidget {
                   child: Stack(
                     children: [
                       Positioned.fill(
-                        child: Image.network(
-                          item.imageUrl ?? '',
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, error, stackTrace) => Container(
-                            color: const Color(0xFF1A2743),
-                            child: Icon(
-                              _getIconData(item.type),
-                              color: Colors.white24,
-                              size: 40,
-                            ),
-                          ),
-                        ),
+                        child: imageUrl.isNotEmpty
+                            ? Image.network(
+                                imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, error, stackTrace) =>
+                                    _buildImageFallback(),
+                              )
+                            : _buildImageFallback(),
                       ),
                       Positioned(
                         top: 8,
@@ -173,5 +170,12 @@ class SearchGridCard extends StatelessWidget {
       default:
         return Icons.music_note_rounded;
     }
+  }
+
+  Widget _buildImageFallback() {
+    return Container(
+      color: const Color(0xFF1A2743),
+      child: Icon(_getIconData(item.type), color: Colors.white24, size: 40),
+    );
   }
 }

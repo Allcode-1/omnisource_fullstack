@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const primary = Color(0xFF5AA9FF);
-  static const secondary = Color(0xFF19C2B4);
-  static const authBackground = Color(0xFF121212);
-  static const appBackground = Color(0xFF0B1220);
-  static const surface = Color(0xFF16213A);
-  static const surfaceAlt = Color(0xFF1D2A47);
-  static const line = Color(0xFF2B3959);
+  static const primary = Color(0xFF8F9FB0);
+  static const secondary = Color(0xFF708D84);
+  static const authBackground = Color(0xFF0F1012);
+  static const appBackground = Color(0xFF07090B);
+  static const surface = Color(0xFF161A20);
+  static const surfaceAlt = Color(0xFF1D232B);
+  static const line = Color(0xFF2C333D);
 
   static ThemeData get authTheme => _buildTheme(
     scaffoldColor: authBackground,
@@ -22,7 +22,7 @@ class AppTheme {
     gradient: LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [Color(0xFF0A1120), Color(0xFF111A2E), Color(0xFF081222)],
+      colors: [Color(0xFF06080A), Color(0xFF0B1016), Color(0xFF06090D)],
       stops: [0.0, 0.55, 1.0],
     ),
   );
@@ -45,25 +45,25 @@ class AppTheme {
     final textTheme = GoogleFonts.plusJakartaSansTextTheme(base.textTheme)
         .copyWith(
           displayMedium: GoogleFonts.plusJakartaSans(
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
             letterSpacing: -0.5,
           ),
           headlineSmall: GoogleFonts.plusJakartaSans(
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
             letterSpacing: -0.2,
           ),
-          titleLarge: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
-          titleMedium: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+          titleLarge: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
+          titleMedium: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
           bodyLarge: GoogleFonts.plusJakartaSans(
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w400,
             color: Colors.white.withValues(alpha: 0.95),
           ),
           bodyMedium: GoogleFonts.plusJakartaSans(
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w400,
             color: Colors.white.withValues(alpha: 0.86),
           ),
           labelLarge: GoogleFonts.plusJakartaSans(
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             letterSpacing: 0.1,
           ),
         );

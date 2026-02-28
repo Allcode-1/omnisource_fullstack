@@ -104,7 +104,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         backgroundColor: theme.cardColor.withValues(
                           alpha: 0.82,
                         ),
-                        thumbColor: const Color(0xFF26365B),
+                        thumbColor: theme.colorScheme.surfaceContainerHighest
+                            .withValues(alpha: 0.9),
                         children: const {
                           ContentCategory.music: Text(
                             "Music",
@@ -215,9 +216,10 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text(
                 "OmniSource",
-                style: Theme.of(
-                  context,
-                ).textTheme.headlineSmall?.copyWith(fontSize: 30),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const Spacer(),
               IconButton(
@@ -238,12 +240,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
                 child: CircleAvatar(
                   radius: 18,
-                  backgroundColor: const Color(0xFF1E2A47),
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
                   child: Text(
                     safeLetter,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -264,9 +268,10 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.fromLTRB(16, 25, 16, 10),
           child: Text(
             title,
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontSize: 21),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontSize: 21,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         SizedBox(
@@ -284,6 +289,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHubShortcuts(BuildContext context) {
+    final theme = Theme.of(context);
     final shortcuts = <({String title, IconData icon, Widget page})>[
       (
         title: 'For You Hub',
@@ -314,7 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: CupertinoButton(
               minimumSize: const Size(0, 36),
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              color: const Color(0xFF1A2743).withValues(alpha: 0.8),
+              color: theme.colorScheme.surface.withValues(alpha: 0.86),
               borderRadius: BorderRadius.circular(12),
               onPressed: () {
                 Navigator.push(
@@ -324,14 +330,18 @@ class _HomeScreenState extends State<HomeScreen> {
               },
               child: Row(
                 children: [
-                  Icon(item.icon, size: 16, color: const Color(0xFF7AC9FF)),
+                  Icon(
+                    item.icon,
+                    size: 16,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.88),
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     item.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
                       fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
