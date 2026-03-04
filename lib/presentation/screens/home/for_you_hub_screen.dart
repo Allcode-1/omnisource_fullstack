@@ -7,6 +7,7 @@ import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/content_repository.dart';
 import '../../bloc/home/home_cubit.dart';
 import '../../bloc/library/library_cubit.dart';
+import '../../widgets/secondary_header_sliver.dart';
 import '../search/search_grid_card.dart';
 
 class ForYouHubScreen extends StatefulWidget {
@@ -116,37 +117,21 @@ class _ForYouHubScreenState extends State<ForYouHubScreen> {
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          CupertinoSliverNavigationBar(
-            largeTitle: Text(
-              'For You',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            border: null,
-            backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.84),
+          const SecondaryHeaderSliver(
+            title: 'For You',
+            subtitle: 'Personalized recommendations with context',
+            infoLabel: 'Adaptive feed with recommendations and trend crossovers',
+            infoIcon: CupertinoIcons.sparkles,
           ),
           CupertinoSliverRefreshControl(onRefresh: () => _load()),
+          const SliverToBoxAdapter(child: SizedBox(height: 14)),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-              child: Text(
-                'Personalized recommendations with context',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.55),
-                  fontSize: 14,
-                ),
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 12)),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: _buildTypeFilters(theme),
             ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 10)),
+          const SliverToBoxAdapter(child: SizedBox(height: 12)),
           if (_isLoading && !_hasData)
             const SliverFillRemaining(
               child: Center(child: CupertinoActivityIndicator()),
@@ -202,7 +187,7 @@ class _ForYouHubScreenState extends State<ForYouHubScreen> {
   Widget _buildHeroInsight(ThemeData theme) {
     final count = _recommendations.length;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 10),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -262,23 +247,32 @@ class _ForYouHubScreenState extends State<ForYouHubScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
                   color: selected
-                      ? theme.colorScheme.surfaceContainerHighest
+                      ? AppTheme.primary.withValues(alpha: 0.28)
                       : theme.colorScheme.surface.withValues(alpha: 0.84),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: Colors.white.withValues(
-                      alpha: selected ? 0.14 : 0.08,
+                      alpha: selected ? 0.24 : 0.08,
                     ),
                   ),
                 ),
                 alignment: Alignment.center,
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 13,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (selected) ...[
+                      const Icon(CupertinoIcons.checkmark_alt, size: 12),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -296,7 +290,7 @@ class _ForYouHubScreenState extends State<ForYouHubScreen> {
     if (items.isEmpty) return const SizedBox.shrink();
     final shortlist = items.take(6).toList();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 2),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

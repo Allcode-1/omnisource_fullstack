@@ -14,8 +14,8 @@ import '../collections/collections_screen.dart';
 import 'for_you_hub_screen.dart';
 import 'home_layout_editor_screen.dart';
 import '../profile/profile_screen.dart';
+import '../search/search_grid_card.dart';
 import '../trending/trending_hub_screen.dart';
-import 'content_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -98,26 +98,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SliverToBoxAdapter(child: SizedBox(height: 110)),
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: CupertinoSlidingSegmentedControl<ContentCategory>(
                         groupValue: state.category,
                         backgroundColor: theme.cardColor.withValues(
-                          alpha: 0.82,
+                          alpha: 0.74,
                         ),
-                        thumbColor: theme.colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.9),
-                        children: const {
-                          ContentCategory.music: Text(
-                            "Music",
-                            style: TextStyle(color: Colors.white, fontSize: 13),
+                        thumbColor: AppTheme.primary.withValues(alpha: 0.88),
+                        children: {
+                          ContentCategory.music: _buildCategoryChip(
+                            category: ContentCategory.music,
+                            selected: state.category == ContentCategory.music,
                           ),
-                          ContentCategory.movie: Text(
-                            "Movies",
-                            style: TextStyle(color: Colors.white, fontSize: 13),
+                          ContentCategory.movie: _buildCategoryChip(
+                            category: ContentCategory.movie,
+                            selected: state.category == ContentCategory.movie,
                           ),
-                          ContentCategory.book: Text(
-                            "Books",
-                            style: TextStyle(color: Colors.white, fontSize: 13),
+                          ContentCategory.book: _buildCategoryChip(
+                            category: ContentCategory.book,
+                            selected: state.category == ContentCategory.book,
                           ),
                         },
                         onValueChanged: (val) {
@@ -130,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
                       child: _buildHubShortcuts(context),
                     ),
                   ),
@@ -200,7 +199,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ? username.trim().substring(0, 1).toUpperCase()
             : "U";
         return Container(
-          padding: const EdgeInsets.fromLTRB(16, 50, 16, 10),
+          padding: const EdgeInsets.fromLTRB(20, 54, 20, 10),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
@@ -223,7 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const Spacer(),
               IconButton(
-                icon: const Icon(CupertinoIcons.slider_horizontal_3, size: 22),
+                icon: const Icon(CupertinoIcons.gear_alt_fill, size: 22),
                 onPressed: () => _openLayoutEditor(state),
                 tooltip: 'Home layout editor',
               ),
@@ -261,11 +260,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildSection(String title, List<UnifiedContent> items) {
     if (items.isEmpty) return const SizedBox.shrink();
+    final shortlist = items.take(6).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 25, 16, 10),
+          padding: const EdgeInsets.fromLTRB(20, 26, 20, 12),
           child: Text(
             title,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -274,14 +274,20 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-        SizedBox(
-          height: 220,
-          child: ListView.builder(
-            padding: const EdgeInsets.only(left: 16),
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: items.length,
-            itemBuilder: (context, index) => ContentCard(item: items[index]),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: shortlist.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 14,
+              childAspectRatio: 0.63,
+            ),
+            itemBuilder: (context, index) =>
+                SearchGridCard(item: shortlist[index]),
           ),
         ),
       ],
@@ -308,18 +314,15 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     ];
 
-    return SizedBox(
-      height: 42,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: shortcuts.length,
-        itemBuilder: (context, index) {
-          final item = shortcuts[index];
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
+    return Column(
+      children: shortcuts.map((item) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: SizedBox(
+            width: double.infinity,
             child: CupertinoButton(
-              minimumSize: const Size(0, 36),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              minimumSize: const Size(0, 42),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               color: theme.colorScheme.surface.withValues(alpha: 0.86),
               borderRadius: BorderRadius.circular(12),
               onPressed: () {
@@ -333,22 +336,62 @@ class _HomeScreenState extends State<HomeScreen> {
                   Icon(
                     item.icon,
                     size: 16,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.88),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.9),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 8),
                   Text(
                     item.title,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    CupertinoIcons.chevron_right,
+                    size: 14,
+                    color: Colors.white.withValues(alpha: 0.45),
                   ),
                 ],
               ),
             ),
-          );
-        },
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildCategoryChip({
+    required ContentCategory category,
+    required bool selected,
+  }) {
+    final (label, icon) = switch (category) {
+      ContentCategory.music => ('Music', CupertinoIcons.music_note),
+      ContentCategory.movie => ('Movies', CupertinoIcons.film),
+      ContentCategory.book => ('Books', CupertinoIcons.book),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 13,
+            color: Colors.white.withValues(alpha: selected ? 1 : 0.68),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: selected ? 1 : 0.72),
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }

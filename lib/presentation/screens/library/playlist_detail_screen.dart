@@ -89,8 +89,18 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
         physics: const BouncingScrollPhysics(),
         slivers: [
           CupertinoSliverNavigationBar(
+            largeTitle: Text(
+              widget.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             middle: Text(
               widget.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             border: null,

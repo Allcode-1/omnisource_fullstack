@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../calendar/release_calendar_screen.dart';
-import '../comparison/content_comparison_screen.dart';
 import '../deep_research/deep_research_screen.dart';
 import '../library/playlist_editor_screen.dart';
 import '../library/smart_library_screen.dart';
@@ -58,12 +57,6 @@ class DashboardScreen extends StatelessWidget {
         subtitle: 'Timeline of releases by type',
         icon: CupertinoIcons.calendar_today,
         builder: (_) => const ReleaseCalendarScreen(),
-      ),
-      _DashboardItem(
-        title: 'Content Comparison',
-        subtitle: 'Compare 2-3 titles side by side',
-        icon: CupertinoIcons.rectangle_split_3x1_fill,
-        builder: (_) => const ContentComparisonScreen(),
       ),
       _DashboardItem(
         title: 'Smart Library',

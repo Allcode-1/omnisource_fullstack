@@ -164,9 +164,10 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> resetPassword(String token, String newPassword) async {
     try {
+      final normalizedToken = _normalizeResetToken(token);
       await _dio.post(
         '/auth/reset-password',
-        data: {'token': token, 'new_password': newPassword},
+        data: {'token': normalizedToken, 'new_password': newPassword},
       );
       AppLogger.info('Password reset completed', name: 'AuthRepository');
     } catch (e, st) {
@@ -178,6 +179,19 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       rethrow;
     }
+  }
+
+  String _normalizeResetToken(String raw) {
+    var token = raw.trim();
+    if (token.isEmpty) return '';
+
+    final parsed = Uri.tryParse(token);
+    final queryToken = parsed?.queryParameters['token'];
+    if (queryToken != null && queryToken.isNotEmpty) {
+      token = queryToken;
+    }
+
+    return token.replaceAll(RegExp(r'\s+'), '');
   }
 
   @override

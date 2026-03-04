@@ -1,10 +1,28 @@
+# Env / secrets
+.env
+.env.*
+!.env.example
+!server/.env.example
+*.pem
+*.key
+keys.json
+*.keystore
+
 # Python / FastAPI
 __pycache__/
 *.py[cod]
 *$py.class
-.env
-.venv
+.venv/
 venv/
+server/.venv/
+server/venv/
+.pytest_cache/
+server/.pytest_cache/
+.coverage
+server/.coverage
+coverage/
+htmlcov/
+*.egg-info/
 
 # Flutter / Dart
 .dart_tool/
@@ -15,10 +33,11 @@ venv/
 build/
 *.utils
 
+# Logs / runtime dumps
+*.log
+hs_err_pid*
+replay_pid*
+
 # IDE
 .vscode/
 .idea/
-
-# Secrets
-keys.json
-*.keystore

@@ -246,8 +246,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
     showCupertinoModalPopup(
       context: context,
       builder: (ctx) => CupertinoActionSheet(
-        title: const Text('Library Tools'),
+        title: const Text('Library Actions'),
         actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showCreatePlaylistDialog();
+            },
+            child: const Text('New Playlist'),
+          ),
           CupertinoActionSheetAction(
             onPressed: () {
               Navigator.pop(ctx);
@@ -290,98 +297,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 physics: const BouncingScrollPhysics(),
                 slivers: [
                   const SliverToBoxAdapter(child: SizedBox(height: 110)),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _LibraryToolButton(
-                              title: 'Smart Library',
-                              icon: CupertinoIcons.chart_bar_alt_fill,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  CupertinoPageRoute(
-                                    builder: (_) => const SmartLibraryScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _LibraryToolButton(
-                              title: 'Playlist Editor',
-                              icon: CupertinoIcons.square_pencil,
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  CupertinoPageRoute(
-                                    builder: (_) =>
-                                        const PlaylistEditorScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (state is LibraryLoaded)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                        child: Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.surface.withValues(alpha: 0.82),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.07),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: _buildMiniMetric(
-                                  'Favorites',
-                                  state.favorites.length.toString(),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _buildMiniMetric(
-                                  'Playlists',
-                                  state.playlists.length.toString(),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _buildMiniMetric(
-                                  'Library',
-                                  (state.favorites.length +
-                                          state.playlists.fold<int>(
-                                            0,
-                                            (sum, p) =>
-                                                sum +
-                                                (state
-                                                        .playlistItemsById[p.id]
-                                                        ?.length ??
-                                                    0),
-                                          ))
-                                      .toString(),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
                   if (state is LibraryLoading)
                     const SliverFillRemaining(
                       child: Center(
@@ -392,7 +307,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     )
                   else if (state is LibraryLoaded)
                     SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       sliver: SliverList(
                         delegate: SliverChildListDelegate([
                           _buildPlaylistTile(
@@ -430,7 +345,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
                   const SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(16, 30, 16, 16),
+                      padding: EdgeInsets.fromLTRB(20, 30, 20, 16),
                       child: Text(
                         "Recently Added",
                         style: TextStyle(
@@ -443,7 +358,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
                   if (state is LibraryLoaded)
                     SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       sliver: SliverGrid(
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
@@ -484,7 +399,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             ? username.trim().substring(0, 1).toUpperCase()
             : "U";
         return Container(
-          padding: const EdgeInsets.fromLTRB(16, 50, 16, 10),
+          padding: const EdgeInsets.fromLTRB(20, 54, 20, 10),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
@@ -505,18 +420,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 ),
               ),
               const Spacer(),
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: _showCreatePlaylistDialog,
-                child: const Icon(CupertinoIcons.plus_circle, size: 28),
+              IconButton(
+                onPressed: _openLibraryTools,
+                icon: const Icon(CupertinoIcons.gear_alt_fill, size: 22),
               ),
               const SizedBox(width: 10),
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: _openLibraryTools,
-                child: const Icon(CupertinoIcons.slider_horizontal_3, size: 24),
-              ),
-              const SizedBox(width: 15),
               GestureDetector(
                 onTap: () => Navigator.push(
                   context,
@@ -544,70 +452,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildMiniMetric(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.56),
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-        ),
-      ],
-    );
-  }
-}
-
-class _LibraryToolButton extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _LibraryToolButton({
-    required this.title,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface.withValues(alpha: 0.86),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 16),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

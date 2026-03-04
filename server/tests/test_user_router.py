@@ -1,7 +1,9 @@
 from dataclasses import dataclass, field
 
+from beanie.exceptions import RevisionIdWasChanged
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from pymongo.errors import DuplicateKeyError
 
 from app.api import deps
 from app.api.routers import user as user_router
@@ -73,6 +75,36 @@ def test_update_user_persists_changes() -> None:
     assert response.status_code == 200
     assert current.username == "trinity"
     assert current.saved is True
+
+
+def test_update_user_returns_409_on_duplicate_username() -> None:
+    current = _FakeUser()
+
+    async def duplicate_save() -> None:
+        raise DuplicateKeyError("duplicate username")
+
+    current.save = duplicate_save  # type: ignore[method-assign]
+    client = TestClient(_build_app(current))
+
+    response = client.patch("/user/update", json={"username": "olzhas"})
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Username is already taken"
+
+
+def test_update_user_returns_409_on_wrapped_duplicate_username() -> None:
+    current = _FakeUser()
+
+    async def wrapped_duplicate_save() -> None:
+        error = RevisionIdWasChanged()
+        error.__cause__ = DuplicateKeyError("duplicate username")
+        raise error
+
+    current.save = wrapped_duplicate_save  # type: ignore[method-assign]
+    client = TestClient(_build_app(current))
+
+    response = client.patch("/user/update", json={"username": "olzhas"})
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Username is already taken"
 
 
 def test_complete_onboarding_updates_flags_and_interests() -> None:

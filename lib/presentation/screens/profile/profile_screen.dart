@@ -1,7 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dio/dio.dart';
+
+import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/user.dart';
 import '../../../domain/repositories/user_repository.dart';
 import '../../../presentation/bloc/auth/auth_cubit.dart';
@@ -18,8 +20,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  static const Color _bgColor = Color(0xFF0B1220);
-  static const Color _surfaceColor = Color(0xFF16213A);
+  static const Color _bgColor = AppTheme.appBackground;
+  static const Color _surfaceColor = AppTheme.surface;
 
   User? _user;
   bool _isLoading = true;
@@ -34,8 +36,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     User? loadedUser;
     try {
       loadedUser = await widget.userRepository.getMe();
-    } catch (e) {
-      _showError("Failed to load profile");
+    } catch (_) {
+      _showError('Failed to load profile');
     }
 
     if (!mounted) return;
@@ -52,7 +54,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  String _firstLetter(String value, {String fallback = "U"}) {
+  String _firstLetter(String value, {String fallback = 'U'}) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) return fallback;
     return trimmed.substring(0, 1).toUpperCase();
@@ -63,9 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: _bgColor,
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF5AA9FF)),
-        ),
+        body: Center(child: CircularProgressIndicator(color: AppTheme.primary)),
       );
     }
 
@@ -74,12 +74,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: _bgColor,
         appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
         body: Center(
-          child: ElevatedButton(
+          child: OutlinedButton(
             onPressed: () {
               setState(() => _isLoading = true);
               _fetchUserData();
             },
-            child: const Text("Retry loading profile"),
+            child: const Text('Retry loading profile'),
           ),
         ),
       );
@@ -90,112 +90,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        centerTitle: true,
-        title: Text(
-          "Profile",
-          style: GoogleFonts.inter(
+        toolbarHeight: 66,
+        title: const Text(
+          'Profile',
+          style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),
         ),
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            size: 20,
-            color: Colors.white,
-          ),
+          icon: const Icon(CupertinoIcons.back, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
             icon: const Icon(
-              CupertinoIcons.settings_solid,
+              CupertinoIcons.gear_alt_fill,
               color: Colors.white,
             ),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                CupertinoPageRoute(builder: (_) => const SettingsScreen()),
               );
             },
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
-
-            // Секция Аватара (Твои стили сохранены)
-            Center(
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: const Color(
-                      0xFF5AA9FF,
-                    ).withValues(alpha: 0.14),
-                    child: Text(
-                      _firstLetter(_user!.username),
-                      style: GoogleFonts.inter(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w300,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _user!.username,
-                    style: GoogleFonts.inter(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _user!.email,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white38,
-                    ),
-                  ),
-                ],
-              ),
+            _buildProfileHeader(),
+            const SizedBox(height: 24),
+            _buildSectionHeader('INTERESTS'),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _user!.interests.map(_buildInterestTag).toList(),
             ),
-
-            const SizedBox(height: 40),
-
-            // Предпочтения
-            _buildSectionHeader("MY PREFERENCES"),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _user!.interests
-                    .map((tag) => _buildInterestTag(tag))
-                    .toList(),
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Кнопки настроек
+            const SizedBox(height: 24),
+            _buildSectionHeader('ACCOUNT'),
+            const SizedBox(height: 10),
             _buildActionCard([
               _buildMenuButton(
-                icon: Icons.edit_note_rounded,
-                label: "Edit Profile",
+                icon: CupertinoIcons.pencil,
+                label: 'Edit Profile',
                 onTap: _showEditProfileSheet,
               ),
               _buildMenuButton(
-                icon: Icons.lock_open_rounded,
-                label: "Reset Password",
+                icon: CupertinoIcons.lock,
+                label: 'Reset Password',
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -204,71 +152,124 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ]),
-
-            const SizedBox(height: 20),
-
+            const SizedBox(height: 16),
             _buildActionCard([
               _buildMenuButton(
-                icon: Icons.logout_rounded,
-                label: "Logout",
+                icon: CupertinoIcons.square_arrow_right,
+                label: 'Logout',
                 onTap: _handleLogoutRequest,
               ),
               _buildMenuButton(
-                icon: Icons.delete_outline_rounded,
-                label: "Delete Account",
+                icon: CupertinoIcons.delete,
+                label: 'Delete Account',
                 isDanger: true,
                 onTap: _handleDeleteAccount,
               ),
             ]),
-
-            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildProfileHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundColor: Colors.white.withValues(alpha: 0.08),
+            child: Text(
+              _firstLetter(_user!.username),
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _user!.username,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _user!.email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withValues(alpha: 0.62),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSectionHeader(String title) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        title,
-        style: GoogleFonts.inter(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          color: Colors.white54,
-          letterSpacing: 1.0,
-        ),
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        color: Colors.white.withValues(alpha: 0.55),
+        letterSpacing: 0.9,
       ),
     );
   }
 
   Widget _buildInterestTag(String tag) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E2C49),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        color: AppTheme.surfaceAlt,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Text(
-        tag,
-        style: GoogleFonts.inter(
+        '#$tag',
+        style: TextStyle(
           fontSize: 12,
-          fontWeight: FontWeight.w400,
-          color: Colors.white70,
+          fontWeight: FontWeight.w500,
+          color: Colors.white.withValues(alpha: 0.82),
         ),
       ),
     );
   }
 
   Widget _buildActionCard(List<Widget> children) {
-    List<Widget> dividedChildren = [];
-    for (int i = 0; i < children.length; i++) {
+    final dividedChildren = <Widget>[];
+    for (var i = 0; i < children.length; i++) {
       dividedChildren.add(children[i]);
       if (i != children.length - 1) {
         dividedChildren.add(
-          const Divider(height: 1, indent: 50, color: Colors.white10),
+          Divider(
+            height: 1,
+            indent: 50,
+            color: Colors.white.withValues(alpha: 0.08),
+          ),
         );
       }
     }
@@ -278,6 +279,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: _surfaceColor,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
       ),
       child: Column(children: dividedChildren),
     );
@@ -293,42 +295,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
       onTap: onTap,
       leading: Icon(
         icon,
-        color: isDanger ? Colors.redAccent : const Color(0xFF5AA9FF),
-        size: 22,
+        color: isDanger
+            ? Colors.redAccent
+            : Colors.white.withValues(alpha: 0.78),
+        size: 20,
       ),
       title: Text(
         label,
-        style: GoogleFonts.inter(
-          fontSize: 15,
-          fontWeight: FontWeight.w400,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
           color: isDanger ? Colors.redAccent : Colors.white,
         ),
       ),
-      trailing: const Icon(
-        Icons.arrow_forward_ios,
+      trailing: Icon(
+        CupertinoIcons.chevron_forward,
         size: 14,
-        color: Colors.white12,
+        color: Colors.white.withValues(alpha: 0.24),
       ),
     );
   }
 
-  // --- ЛОГИКА ---
-
   void _showEditProfileSheet() {
     final nameController = TextEditingController(text: _user?.username);
-    List<String> tempInterests = List.from(_user?.interests ?? []);
+    final tempInterests = List<String>.from(_user?.interests ?? []);
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: _surfaceColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setModalState) => Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
             left: 20,
             right: 20,
             top: 20,
@@ -337,90 +339,99 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "Edit Profile",
-                style: GoogleFonts.inter(
+              const Text(
+                'Edit Profile',
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
               TextField(
                 controller: nameController,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  labelText: "Username",
-                  labelStyle: const TextStyle(color: Colors.white54),
+                  labelText: 'Username',
+                  labelStyle: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Colors.white10),
+                    borderSide: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFF5AA9FF)),
+                    borderSide: const BorderSide(color: AppTheme.primary),
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               Text(
-                "Interests",
-                style: GoogleFonts.inter(fontSize: 14, color: Colors.white54),
+                'Interests',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.white.withValues(alpha: 0.64),
+                ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 children: tempInterests
                     .map(
                       (tag) => Chip(
                         label: Text(tag, style: const TextStyle(fontSize: 12)),
-                        onDeleted: () =>
-                            setModalState(() => tempInterests.remove(tag)),
+                        onDeleted: () => setModalState(() {
+                          tempInterests.remove(tag);
+                        }),
                       ),
                     )
                     .toList(),
               ),
               TextButton.icon(
                 onPressed: () async {
-                  // Тут можно вызвать диалог добавления нового тега
                   final newTag = await _showAddTagDialog();
-                  if (newTag != null)
-                    setModalState(() => tempInterests.add(newTag));
+                  if (newTag == null || newTag.trim().isEmpty) return;
+                  setModalState(() {
+                    tempInterests.add(newTag.trim());
+                  });
                 },
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text("Add Interest"),
+                label: const Text('Add Interest'),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF5AA9FF),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
                   onPressed: () async {
                     final trimmedName = nameController.text.trim();
                     if (trimmedName.isEmpty) {
-                      _showError("Username cannot be empty");
+                      _showError('Username cannot be empty');
                       return;
                     }
                     try {
+                      final navigator = Navigator.of(sheetContext);
                       final updated = await widget.userRepository.updateProfile(
                         username: trimmedName,
                         interests: tempInterests,
                       );
+                      if (!mounted || !sheetContext.mounted) return;
                       setState(() => _user = updated);
-                      if (mounted) Navigator.pop(context);
-                    } catch (_) {
-                      _showError("Failed to update profile");
+                      navigator.pop();
+                    } catch (e) {
+                      var message = 'Failed to update profile';
+                      if (e is DioException) {
+                        final body = e.response?.data;
+                        if (body is Map && body['detail'] is String) {
+                          message = body['detail'] as String;
+                        }
+                      }
+                      _showError(message);
                     }
                   },
-                  child: const Text(
-                    "Save Changes",
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  child: const Text('Save Changes'),
                 ),
               ),
               const SizedBox(height: 20),
@@ -438,7 +449,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: _surfaceColor,
         title: const Text(
-          "New Interest",
+          'New Interest',
           style: TextStyle(color: Colors.white),
         ),
         content: TextField(
@@ -449,11 +460,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text("Add"),
+            child: const Text('Add'),
           ),
         ],
       ),
@@ -466,20 +477,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: _surfaceColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Logout", style: TextStyle(color: Colors.white)),
-        content: const Text(
-          "Are you sure you want to exit?",
-          style: TextStyle(color: Colors.white70),
+        title: const Text('Logout', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Are you sure you want to exit?',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.78)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel"),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text(
-              "Logout",
+              'Logout',
               style: TextStyle(color: Colors.redAccent),
             ),
           ),
@@ -495,31 +506,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _handleDeleteAccount() async {
-    // Аналогичный твоему метод, но с улучшенным стилем диалога
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: _surfaceColor,
-        title: const Text("Delete Account?"),
-        content: const Text(
-          "This action is permanent.",
-          style: TextStyle(color: Colors.white70),
+        title: const Text(
+          'Delete Account?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'This action is permanent.',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.78)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel"),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text(
-              "Delete",
+              'Delete',
               style: TextStyle(color: Colors.redAccent),
             ),
           ),
         ],
       ),
     );
+
     if (confirm == true) {
       try {
         await widget.userRepository.deleteAccount();
@@ -529,7 +543,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Navigator.of(context).popUntil((route) => route.isFirst);
         }
       } catch (_) {
-        _showError("Failed to delete account");
+        _showError('Failed to delete account');
       }
     }
   }

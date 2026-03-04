@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../bloc/auth/auth_cubit.dart';
 import '../../bloc/auth/auth_state.dart';
 import '../../../core/utils/validators.dart';
+import '../../widgets/custom_input.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 
@@ -17,7 +18,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
 
   @override
   Widget build(BuildContext context) {
@@ -62,46 +62,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: TextStyle(fontSize: 14, color: Colors.grey),
                       ),
                       const SizedBox(height: 40),
-                      const Text(
-                        'Email Address',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                      TextFormField(
+                      CustomInput(
+                        label: 'Email Address',
+                        icon: Icons.mail_outline,
                         controller: _emailController,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                        decoration: const InputDecoration(helperText: ''),
                         validator: Validators.email,
                       ),
                       const SizedBox(height: 20),
-                      const Text(
-                        'Password',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                      TextFormField(
+                      CustomInput(
+                        label: 'Password',
+                        icon: Icons.lock_outline,
                         controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                        decoration: InputDecoration(
-                          helperText: '',
-                          suffixIcon: InkWell(
-                            onTap: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            ),
-                            child: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                              color: Colors.white54,
-                              size: 18,
-                            ),
-                          ),
-                        ),
+                        isPassword: true,
                         validator: Validators.password,
                       ),
                       const SizedBox(height: 32),
@@ -143,17 +115,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 48),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            "Don't have an account?",
-                            style: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 12,
-                            ),
-                          ),
-                          ElevatedButton(
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final actionButton = ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white12,
                               padding: const EdgeInsets.symmetric(
@@ -173,8 +137,43 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: Colors.white,
                               ),
                             ),
-                          ),
-                        ],
+                          );
+
+                          if (constraints.maxWidth < 280) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Don't have an account?",
+                                  style: TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                actionButton,
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  "Don't have an account?",
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              actionButton,
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),

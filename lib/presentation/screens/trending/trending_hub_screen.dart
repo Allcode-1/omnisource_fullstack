@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/content_repository.dart';
 import '../../bloc/home/home_cubit.dart';
+import '../../widgets/secondary_header_sliver.dart';
 import '../search/search_grid_card.dart';
 
 class TrendingHubScreen extends StatefulWidget {
@@ -110,130 +111,82 @@ class _TrendingHubScreenState extends State<TrendingHubScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final activeType = _tabs[_tabController.index].$2;
     final items = _cache[activeType] ?? const [];
     final headerCount = items.length;
 
     return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Row(
-                children: [
-                  CupertinoButton(
-                    padding: const EdgeInsets.only(right: 8),
-                    minimumSize: Size.zero,
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    child: const Icon(CupertinoIcons.back, size: 22),
-                  ),
-                  Text(
-                    'Trending',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SecondaryHeaderSliver(
+            title: 'Trending',
+            subtitle: 'Live trend map by content type',
+            infoLabel: '$headerCount active picks in this stream',
+            infoIcon: CupertinoIcons.flame_fill,
+          ),
+          CupertinoSliverRefreshControl(
+            onRefresh: () => _loadForCurrentTab(force: true, silent: false),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+              child: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                labelColor: Colors.white,
+                labelStyle: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+                unselectedLabelColor: Colors.white54,
+                indicatorColor: AppTheme.primary,
+                dividerColor: Colors.white.withValues(alpha: 0.06),
+                tabs: _tabs.map((tab) => Tab(text: tab.$1)).toList(),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceAlt.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.08),
-                  ),
-                ),
-                child: Row(
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          if (_isLoading && items.isEmpty)
+            const SliverFillRemaining(
+              child: Center(child: CupertinoActivityIndicator()),
+            )
+          else if (_error.isNotEmpty && items.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(CupertinoIcons.flame_fill, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Live trend map by content type',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.75),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
                     Text(
-                      '$headerCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      _error,
+                      style: const TextStyle(color: Color(0xFFFF7A7A)),
+                    ),
+                    const SizedBox(height: 10),
+                    ElevatedButton(
+                      onPressed: () => _loadForCurrentTab(force: true),
+                      child: const Text('Retry'),
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              labelColor: Colors.white,
-              labelStyle: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 14,
+                  childAspectRatio: 0.63,
+                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  return SearchGridCard(item: items[index]);
+                }, childCount: items.length),
               ),
-              unselectedLabelColor: Colors.white54,
-              indicatorColor: AppTheme.primary,
-              dividerColor: Colors.white.withValues(alpha: 0.06),
-              tabs: _tabs.map((tab) => Tab(text: tab.$1)).toList(),
             ),
-            Expanded(
-              child: _isLoading && items.isEmpty
-                  ? const Center(child: CupertinoActivityIndicator())
-                  : _error.isNotEmpty && items.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _error,
-                            style: const TextStyle(color: Color(0xFFFF7A7A)),
-                          ),
-                          const SizedBox(height: 10),
-                          ElevatedButton(
-                            onPressed: () => _loadForCurrentTab(force: true),
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: () =>
-                          _loadForCurrentTab(force: true, silent: false),
-                      child: GridView.builder(
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                        itemCount: items.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 14,
-                              childAspectRatio: 0.63,
-                            ),
-                        itemBuilder: (context, index) {
-                          return SearchGridCard(item: items[index]);
-                        },
-                      ),
-                    ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }

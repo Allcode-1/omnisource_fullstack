@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../bloc/auth/auth_cubit.dart';
+import '../../bloc/auth/auth_state.dart';
 import '../../../core/utils/validators.dart';
+import '../../widgets/custom_input.dart';
 
 class NewPasswordScreen extends StatefulWidget {
   const NewPasswordScreen({super.key});
@@ -16,8 +18,18 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
   final _confirmPassController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  bool _obscurePass = true;
-  bool _obscureConfirm = true;
+  String _normalizeTokenInput(String raw) {
+    var token = raw.trim();
+    if (token.isEmpty) return '';
+
+    final parsed = Uri.tryParse(token);
+    final queryToken = parsed?.queryParameters['token'];
+    if (queryToken != null && queryToken.isNotEmpty) {
+      token = queryToken;
+    }
+
+    return token.replaceAll(RegExp(r'\s+'), '');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +65,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Paste the Google authentication token and create a new secure password.',
+                  'Paste the reset code or full reset link from email, then create a new secure password.',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey,
@@ -62,68 +74,30 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                 ),
                 const SizedBox(height: 40),
 
-                const Text(
-                  'Google Token',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-                TextFormField(
+                CustomInput(
+                  label: 'Reset Code or Link',
+                  icon: Icons.vpn_key_outlined,
                   controller: _tokenController,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                  decoration: const InputDecoration(helperText: ''),
-                  validator: (val) =>
-                      (val == null || val.length < 5) ? "Invalid token" : null,
+                  validator: (val) {
+                    final normalized = _normalizeTokenInput(val ?? '');
+                    if (normalized.length < 8) return "Invalid reset code";
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 20),
-
-                const Text(
-                  'New Password',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-                TextFormField(
+                CustomInput(
+                  label: 'New Password',
+                  icon: Icons.lock_outline,
                   controller: _passController,
-                  obscureText: _obscurePass,
-                  autovalidateMode: AutovalidateMode.onUserInteraction,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                  decoration: InputDecoration(
-                    helperText: '',
-                    suffixIcon: InkWell(
-                      onTap: () => setState(() => _obscurePass = !_obscurePass),
-                      child: Icon(
-                        _obscurePass
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                        size: 18,
-                        color: Colors.white54,
-                      ),
-                    ),
-                  ),
+                  isPassword: true,
                   validator: Validators.password,
                 ),
                 const SizedBox(height: 20),
-
-                const Text(
-                  'Confirm New Password',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-                TextFormField(
+                CustomInput(
+                  label: 'Confirm New Password',
+                  icon: Icons.lock_outline,
                   controller: _confirmPassController,
-                  obscureText: _obscureConfirm,
-                  autovalidateMode: AutovalidateMode.onUserInteraction,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                  decoration: InputDecoration(
-                    helperText: '',
-                    suffixIcon: InkWell(
-                      onTap: () =>
-                          setState(() => _obscureConfirm = !_obscureConfirm),
-                      child: Icon(
-                        _obscureConfirm
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                        size: 18,
-                        color: Colors.white54,
-                      ),
-                    ),
-                  ),
+                  isPassword: true,
                   validator: (val) => val != _passController.text
                       ? "Passwords do not match"
                       : null,
@@ -136,19 +110,24 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
                   child: ElevatedButton(
                     onPressed: () async {
                       if (_formKey.currentState!.validate()) {
-                        final success = await context
-                            .read<AuthCubit>()
-                            .resetPassword(
-                              _tokenController.text,
-                              _passController.text,
-                            );
+                        final authCubit = context.read<AuthCubit>();
+                        final navigator = Navigator.of(context);
+                        final messenger = ScaffoldMessenger.of(context);
+                        final success = await authCubit.resetPassword(
+                          _normalizeTokenInput(_tokenController.text),
+                          _passController.text,
+                        );
                         if (!mounted) return;
                         if (success) {
-                          Navigator.popUntil(context, (route) => route.isFirst);
+                          navigator.popUntil((route) => route.isFirst);
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Failed to reset password'),
+                          final authState = authCubit.state;
+                          final message = authState is AuthError
+                              ? authState.message
+                              : 'Failed to reset password';
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(message),
                               backgroundColor: Colors.redAccent,
                             ),
                           );

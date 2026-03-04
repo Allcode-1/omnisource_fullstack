@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const primary = Color(0xFF8F9FB0);
-  static const secondary = Color(0xFF708D84);
-  static const authBackground = Color(0xFF0F1012);
-  static const appBackground = Color(0xFF07090B);
-  static const surface = Color(0xFF161A20);
-  static const surfaceAlt = Color(0xFF1D232B);
-  static const line = Color(0xFF2C333D);
+  static const primary = Color(0xFF0984E3);
+  static const secondary = Color(0xFF58616B);
+  static const authBackground = Color(0xFF121212);
+  static const appBackground = Color(0xFF121212);
+  static const surface = Color(0xFF181818);
+  static const surfaceAlt = Color(0xFF202020);
+  static const line = Color(0xFF2B2B2B);
 
   static ThemeData get authTheme => _buildTheme(
     scaffoldColor: authBackground,
-    inputFill: const Color(0xFF171717),
+    inputFill: const Color(0xFF151515),
   );
 
   static ThemeData get mainTheme =>
@@ -22,8 +22,8 @@ class AppTheme {
     gradient: LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [Color(0xFF06080A), Color(0xFF0B1016), Color(0xFF06090D)],
-      stops: [0.0, 0.55, 1.0],
+      colors: [Color(0xFF121212), Color(0xFF101010), Color(0xFF121212)],
+      stops: [0.0, 0.5, 1.0],
     ),
   );
 
@@ -82,8 +82,21 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: textTheme.titleLarge?.copyWith(fontSize: 24),
+        toolbarHeight: 64,
+        titleSpacing: 20,
+        actionsPadding: const EdgeInsets.only(right: 8),
+        titleTextStyle: textTheme.titleLarge?.copyWith(
+          fontSize: 24,
+          color: Colors.white,
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          padding: const EdgeInsets.all(10),
+          minimumSize: const Size(44, 44),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -123,7 +136,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: Colors.white,
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.16)),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -133,10 +146,10 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: surface,
-        selectedColor: primary.withValues(alpha: 0.2),
+        selectedColor: primary.withValues(alpha: 0.18),
         labelStyle: textTheme.bodySmall ?? const TextStyle(color: Colors.white),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
       ),
       snackBarTheme: SnackBarThemeData(

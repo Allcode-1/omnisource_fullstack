@@ -9,8 +9,10 @@ import '../../../core/utils/app_logger.dart';
 import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/repositories/content_repository.dart';
+import '../../../domain/repositories/user_repository.dart';
 import '../../bloc/auth/auth_cubit.dart';
 import '../../bloc/auth/auth_state.dart';
+import '../profile/profile_screen.dart';
 import '../search/search_grid_card.dart';
 
 class DeepResearchScreen extends StatefulWidget {
@@ -21,6 +23,7 @@ class DeepResearchScreen extends StatefulWidget {
 }
 
 class _DeepResearchScreenState extends State<DeepResearchScreen> {
+  final ScrollController _scrollController = ScrollController();
   final TextEditingController _tagSearchController = TextEditingController();
 
   List<String> _allTags = const [];
@@ -35,16 +38,24 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
   bool _isLoadingResults = false;
   String _error = '';
   String _activeType = 'all';
+  double _appBarOpacity = 1.0;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(() {
+      final next = (1.0 - (_scrollController.offset / 80)).clamp(0.0, 1.0);
+      if (next != _appBarOpacity) {
+        setState(() => _appBarOpacity = next);
+      }
+    });
     _loadTags();
   }
 
   @override
   void dispose() {
     _researchDebounce?.cancel();
+    _scrollController.dispose();
     _tagSearchController.dispose();
     super.dispose();
   }
@@ -206,110 +217,179 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          const SliverToBoxAdapter(child: SizedBox(height: 60)),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Discover',
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Text(
-                'Pick one or more tags and explore a focused feed',
-                style: TextStyle(color: Colors.white54, fontSize: 14),
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _buildSearchBar(),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 14)),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _buildTypeFilters(),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 14)),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _buildSelectedTags(),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 14)),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _buildTagCloud(),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 18)),
-          if (_isLoadingResults)
-            const SliverFillRemaining(
-              child: Center(child: CupertinoActivityIndicator()),
-            )
-          else if (_error.isNotEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: Text(
-                  _error,
-                  style: const TextStyle(color: Color(0xFFFF7A7A)),
+      body: Stack(
+        children: [
+          CustomScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              const SliverToBoxAdapter(child: SizedBox(height: 120)),
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(20, 2, 20, 0),
+                  child: Text(
+                    'Pick one or more tags and explore a focused feed',
+                    style: TextStyle(color: Colors.white54, fontSize: 14),
+                  ),
                 ),
               ),
-            )
-          else if (_selectedTags.isEmpty)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: Text(
-                  'Select tags to start discovering',
-                  style: TextStyle(color: Colors.white38),
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _buildSearchBar(),
                 ),
               ),
-            )
-          else if (_results.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(
-                child: Text(
-                  'No results for selected tags',
-                  style: const TextStyle(color: Colors.white38),
+              const SliverToBoxAdapter(child: SizedBox(height: 14)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _buildTypeFilters(),
                 ),
               ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 18,
-                  childAspectRatio: 0.63,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) => SearchGridCard(item: _results[index]),
-                  childCount: _results.length,
+              const SliverToBoxAdapter(child: SizedBox(height: 14)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _buildSelectedTags(),
                 ),
               ),
+              const SliverToBoxAdapter(child: SizedBox(height: 14)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _buildTagCloud(),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 18)),
+              if (_isLoadingResults)
+                const SliverFillRemaining(
+                  child: Center(child: CupertinoActivityIndicator()),
+                )
+              else if (_error.isNotEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Text(
+                      _error,
+                      style: const TextStyle(color: Color(0xFFFF7A7A)),
+                    ),
+                  ),
+                )
+              else if (_selectedTags.isEmpty)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Text(
+                      'Select tags to start discovering',
+                      style: TextStyle(color: Colors.white38),
+                    ),
+                  ),
+                )
+              else if (_results.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Text(
+                      'No results for selected tags',
+                      style: const TextStyle(color: Colors.white38),
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  sliver: SliverGrid(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 14,
+                      mainAxisSpacing: 18,
+                      childAspectRatio: 0.63,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => SearchGridCard(item: _results[index]),
+                      childCount: _results.length,
+                    ),
+                  ),
+                ),
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            ],
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Opacity(
+              opacity: _appBarOpacity,
+              child: _buildAppBar(context),
             ),
-          const SliverToBoxAdapter(child: SizedBox(height: 100)),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context) {
+    return BlocBuilder<AuthCubit, AuthState>(
+      builder: (context, authState) {
+        final username = authState is AuthAuthenticated
+            ? authState.user.username
+            : "U";
+        final safeLetter = username.trim().isNotEmpty
+            ? username.trim().substring(0, 1).toUpperCase()
+            : "U";
+
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 54, 20, 10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Theme.of(context).colorScheme.surface.withValues(alpha: 0.96),
+                Colors.transparent,
+              ],
+            ),
+          ),
+          child: Row(
+            children: [
+              Text(
+                "Discover",
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () {
+                  final userRepository = context.read<UserRepository>();
+                  Navigator.push(
+                    context,
+                    CupertinoPageRoute(
+                      builder: (_) =>
+                          ProfileScreen(userRepository: userRepository),
+                    ),
+                  );
+                },
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
+                  child: Text(
+                    safeLetter,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

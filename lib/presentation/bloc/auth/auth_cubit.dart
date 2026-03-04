@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dio/dio.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import 'auth_state.dart';
@@ -126,13 +127,20 @@ class AuthCubit extends Cubit<AuthState> {
       emit(AuthInitial());
       return true;
     } catch (e, st) {
+      String message = "Invalid token or password reset failed";
+      if (e is DioException) {
+        final body = e.response?.data;
+        if (body is Map && body['detail'] is String) {
+          message = body['detail'] as String;
+        }
+      }
       AppLogger.error(
         'Reset password failed',
         error: e,
         stackTrace: st,
         name: 'AuthCubit',
       );
-      emit(AuthError("Invalid token or password reset failed"));
+      emit(AuthError(message));
       return false;
     }
   }

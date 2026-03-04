@@ -13,6 +13,30 @@ For Flutter web or mobile, override backend URL with:
 flutter run --dart-define=API_BASE_URL=http://<your-host>:8000
 ```
 
+## Docker Quick Start
+
+Run the backend stack (API + MongoDB + Redis):
+
+```bash
+docker compose up --build
+```
+
+API will be available at:
+
+```bash
+http://localhost:8000
+```
+
+If you need real external integrations (TMDB/Spotify/Google Books/SMTP), set
+environment variables before start (or create local `.env` from `.env.example`).
+Never commit real secrets.
+
+Stop and remove containers/volumes:
+
+```bash
+docker compose down -v
+```
+
 ## Deep Research Data Seeding
 
 If Deep Research keeps rotating the same small set of items, seed metadata and

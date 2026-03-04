@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../bloc/auth/auth_cubit.dart';
 import '../../../core/utils/validators.dart';
+import '../../widgets/custom_input.dart';
 import 'new_password_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -50,7 +51,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Enter the email associated with your account and we will send an authentication token.',
+                  'Enter your account email and we will send a reset code and secure reset link.',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey,
@@ -59,14 +60,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 50),
 
-                const Text(
-                  'Email Address',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-                TextFormField(
+                CustomInput(
+                  label: 'Email Address',
+                  icon: Icons.mail_outline,
                   controller: _emailController,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                  decoration: const InputDecoration(helperText: ''),
                   validator: Validators.email,
                 ),
 
@@ -77,19 +74,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   child: ElevatedButton(
                     onPressed: () async {
                       if (_formKey.currentState!.validate()) {
+                        final navigator = Navigator.of(context);
+                        final messenger = ScaffoldMessenger.of(context);
                         final success = await context
                             .read<AuthCubit>()
                             .forgotPassword(_emailController.text);
                         if (!mounted) return;
                         if (success) {
-                          Navigator.push(
-                            context,
+                          navigator.push(
                             MaterialPageRoute(
                               builder: (_) => const NewPasswordScreen(),
                             ),
                           );
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          messenger.showSnackBar(
                             const SnackBar(
                               content: Text('Failed to send reset email'),
                               backgroundColor: Colors.redAccent,

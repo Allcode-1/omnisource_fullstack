@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/content_repository.dart';
+import '../../widgets/secondary_header_sliver.dart';
 import '../search/search_grid_card.dart';
 
 class CollectionsScreen extends StatefulWidget {
@@ -75,26 +76,13 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          const SliverToBoxAdapter(child: SizedBox(height: 58)),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Collections',
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
-              ),
-            ),
+          const SecondaryHeaderSliver(
+            title: 'Collections',
+            subtitle: 'Curated sets across moods and genres',
+            infoLabel: 'Multi-tag bundles mixed from deep research results',
+            infoIcon: CupertinoIcons.square_stack_3d_up_fill,
           ),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Text(
-                'Curated sets across moods and genres',
-                style: TextStyle(color: Colors.white54, fontSize: 14),
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 14)),
+          const SliverToBoxAdapter(child: SizedBox(height: 12)),
           if (_loading)
             const SliverFillRemaining(
               child: Center(child: CupertinoActivityIndicator()),
@@ -118,7 +106,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                   final items =
                       _itemsByCollection[name] ?? const <UnifiedContent>[];
                   return Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -153,23 +141,21 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                               )
                               .toList(),
                         ),
-                        const SizedBox(height: 10),
-                        SizedBox(
-                          height: 260,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: items.length,
-                            itemBuilder: (context, index) {
-                              final item = items[index];
-                              return SizedBox(
-                                width: 170,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(right: 12),
-                                  child: SearchGridCard(item: item),
-                                ),
-                              );
-                            },
-                          ),
+                        const SizedBox(height: 12),
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: items.length,
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 14,
+                                childAspectRatio: 0.63,
+                              ),
+                          itemBuilder: (context, index) {
+                            return SearchGridCard(item: items[index]);
+                          },
                         ),
                       ],
                     ),

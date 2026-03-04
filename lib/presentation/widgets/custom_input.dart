@@ -42,17 +42,18 @@ class CustomInput extends StatelessWidget {
               color: Theme.of(context).primaryColor,
             ),
             hintText: 'Enter your $label',
-            hintStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),
+            hintStyle: TextStyle(color: Colors.grey.withValues(alpha: 0.5)),
             filled: true,
-            fillColor: Colors.white.withOpacity(0.05), // Легкий фон
+            fillColor: Colors.white.withValues(alpha: 0.05),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 16,
             ),
-            // Аккуратная обводка
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+              borderSide: BorderSide(
+                color: Colors.white.withValues(alpha: 0.1),
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timedelta, timezone
+from urllib.parse import parse_qs, unquote, urlparse
 from fastapi import APIRouter, HTTPException, status, Depends, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from app.models.user import User
@@ -11,6 +12,21 @@ from app.core.logging import get_logger
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = get_logger(__name__)
+
+
+def _normalize_reset_token(raw_token: str) -> str:
+    token = unquote((raw_token or "").strip()).strip('"').strip("'")
+    if not token:
+        return ""
+
+    parsed = urlparse(token)
+    if parsed.scheme and parsed.query:
+        query_token = parse_qs(parsed.query).get("token", [""])[0].strip()
+        if query_token:
+            token = query_token
+
+    # Copy-paste from emails often inserts line breaks or spaces.
+    return token.replace(" ", "").replace("\n", "").replace("\r", "")
 
 
 @router.post("/login")
@@ -48,30 +64,32 @@ async def register(user_in: UserCreate):
 
 @router.post("/forgot-password")
 async def forgot_password(data: ForgotPassword, background_tasks: BackgroundTasks):
-    user = await User.find_one(User.email == data.email)
+    email = data.email.strip().lower()
+    user = await User.find_one(User.email == email)
     if not user:
         # Do not leak user existence.
-        logger.info("Password reset requested for non-existing email=%s", data.email)
+        logger.info("Password reset requested for non-existing email=%s", email)
         return {"message": "If the account exists, reset instructions were sent"}
     
     token = str(uuid.uuid4())
-    await PasswordReset.find(PasswordReset.email == data.email).delete()
+    await PasswordReset.find(PasswordReset.email == email).delete()
     reset_entry = PasswordReset(
-        email=data.email,
+        email=email,
         token=token,
         expires_at=datetime.now(timezone.utc) + timedelta(minutes=15)
     )
     await reset_entry.insert()
     
     # send in background mode so user don't need to wait
-    background_tasks.add_task(send_reset_password_email, data.email, token)
+    background_tasks.add_task(send_reset_password_email, email, token)
     
-    logger.info("Password reset token issued for email=%s", data.email)
+    logger.info("Password reset token issued for email=%s", email)
     return {"message": "If the account exists, reset instructions were sent"}
 
 @router.post("/reset-password")
 async def reset_password(data: ResetPassword):
-    reset_entry = await PasswordReset.find_one(PasswordReset.token == data.token)
+    normalized_token = _normalize_reset_token(data.token)
+    reset_entry = await PasswordReset.find_one(PasswordReset.token == normalized_token)
 
     now_utc = datetime.now(timezone.utc)
 

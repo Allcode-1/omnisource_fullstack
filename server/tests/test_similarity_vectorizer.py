@@ -14,6 +14,10 @@ def test_cosine_similarity_empty_or_zero_vector_is_zero() -> None:
     assert SimilarityManager.calculate_cosine_similarity([0.0, 0.0], [1.0, 1.0]) == 0.0
 
 
+def test_cosine_similarity_dimension_mismatch_is_zero() -> None:
+    assert SimilarityManager.calculate_cosine_similarity([1.0, 2.0], [1.0]) == 0.0
+
+
 def test_genres_to_vector_binary_mapping() -> None:
     result = SimilarityManager.genres_to_vector(
         all_genres=["Action", "Drama", "Sci-Fi"],

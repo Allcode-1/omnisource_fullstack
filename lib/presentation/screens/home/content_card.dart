@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/analytics_repository.dart';
 import '../../bloc/library/library_cubit.dart';
@@ -15,15 +16,15 @@ class ContentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final imageUrl = (item.imageUrl ?? '').trim();
 
     return BlocBuilder<LibraryCubit, LibraryState>(
       builder: (context, libraryState) {
-        bool isLiked = false;
-        if (libraryState is LibraryLoaded) {
-          isLiked = libraryState.favorites.any(
-            (fav) => fav.externalId == item.externalId,
-          );
-        }
+        final isLiked = libraryState is LibraryLoaded
+            ? libraryState.favorites.any(
+                (fav) => fav.externalId == item.externalId,
+              )
+            : false;
 
         return GestureDetector(
           onLongPress: () =>
@@ -44,91 +45,99 @@ class ContentCard extends StatelessWidget {
             );
             Navigator.push(
               context,
-              CupertinoPageRoute(
-                builder: (context) => DetailScreen(content: item),
-              ),
+              CupertinoPageRoute(builder: (_) => DetailScreen(content: item)),
             );
           },
-          child: Container(
+          child: SizedBox(
             width: 145,
-            margin: const EdgeInsets.only(right: 15),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Stack(
-                  children: [
-                    _buildImage(),
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: GestureDetector(
-                        onTap: () => ContentQuickActions.show(
-                          context,
-                          item,
-                          source: 'home',
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: Color(0x7A0A1020),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            CupertinoIcons.ellipsis,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: GestureDetector(
-                        onTap: () async {
-                          await context.read<LibraryCubit>().toggleFavorite(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 15),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Stack(
+                    children: [
+                      _buildImage(imageUrl),
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: _CircleAction(
+                          icon: CupertinoIcons.ellipsis,
+                          onTap: () => ContentQuickActions.show(
+                            context,
                             item,
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: Color(0x7A0A1020),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            isLiked
-                                ? CupertinoIcons.heart_fill
-                                : CupertinoIcons.heart,
-                            color: isLiked
-                                ? const Color(0xFFFF6B7A)
-                                : Colors.white,
-                            size: 20,
+                            source: 'home',
                           ),
                         ),
                       ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: _CircleAction(
+                          icon: isLiked
+                              ? CupertinoIcons.heart_fill
+                              : CupertinoIcons.heart,
+                          iconColor: isLiked
+                              ? const Color(0xFFFF6B7A)
+                              : Colors.white,
+                          onTap: () =>
+                              context.read<LibraryCubit>().toggleFavorite(item),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  item.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
                   ),
-                ),
-                Text(
-                  item.subtitle ?? '',
-                  maxLines: 1,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.5),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Icon(
+                        _getIconData(item.type),
+                        size: 12,
+                        color: Colors.white.withValues(alpha: 0.58),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _typeLabel(item.type),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.62),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11,
+                        ),
+                      ),
+                      if (item.rating > 0) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          '• ${item.rating.toStringAsFixed(1)}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.5),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                ),
-              ],
+                  if ((item.subtitle ?? '').isNotEmpty)
+                    Text(
+                      item.subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.46),
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         );
@@ -136,7 +145,18 @@ class ContentCard extends StatelessWidget {
     );
   }
 
-  Widget _buildImage() {
+  String _typeLabel(String? type) {
+    switch (type) {
+      case 'movie':
+        return 'Movie';
+      case 'book':
+        return 'Book';
+      default:
+        return 'Music';
+    }
+  }
+
+  Widget _buildImage(String imageUrl) {
     return Container(
       height: 145,
       width: 145,
@@ -144,7 +164,7 @@ class ContentCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xCC020816).withValues(alpha: 0.45),
+            color: Colors.black.withValues(alpha: 0.28),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -152,19 +172,21 @@ class ContentCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
-        child: Image.network(
-          item.imageUrl ?? '',
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Container(
-            color: Colors.white.withValues(alpha: 0.05),
-            child: Icon(
-              _getIconData(item.type),
-              color: Colors.white24,
-              size: 40,
-            ),
-          ),
-        ),
+        child: imageUrl.isNotEmpty
+            ? Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => _imageFallback(),
+              )
+            : _imageFallback(),
       ),
+    );
+  }
+
+  Widget _imageFallback() {
+    return Container(
+      color: Colors.white.withValues(alpha: 0.05),
+      child: Icon(_getIconData(item.type), color: Colors.white24, size: 40),
     );
   }
 
@@ -177,5 +199,32 @@ class ContentCard extends StatelessWidget {
       default:
         return Icons.music_note_rounded;
     }
+  }
+}
+
+class _CircleAction extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final VoidCallback onTap;
+
+  const _CircleAction({
+    required this.icon,
+    this.iconColor = Colors.white,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: const BoxDecoration(
+          color: Color(0x66000000),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, size: 17, color: iconColor),
+      ),
+    );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../bloc/auth/auth_cubit.dart';
 import '../../bloc/auth/auth_state.dart';
 import '../../../core/utils/validators.dart';
+import '../../widgets/custom_input.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -17,9 +18,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _userController = TextEditingController();
   final _passController = TextEditingController();
   final _confirmPassController = TextEditingController();
-
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
 
   @override
   Widget build(BuildContext context) {
@@ -66,94 +64,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 40),
 
-                      const Text(
-                        'Username',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                      TextFormField(
+                      CustomInput(
+                        label: 'Username',
+                        icon: Icons.person_outline,
                         controller: _userController,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                        decoration: const InputDecoration(helperText: ''),
                         validator: (v) =>
                             v == null || v.isEmpty ? 'Enter username' : null,
                       ),
                       const SizedBox(height: 20),
-
-                      const Text(
-                        'Email Address',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                      TextFormField(
+                      CustomInput(
+                        label: 'Email Address',
+                        icon: Icons.mail_outline,
                         controller: _emailController,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                        decoration: const InputDecoration(helperText: ''),
                         validator: Validators.email,
                       ),
                       const SizedBox(height: 20),
-
-                      const Text(
-                        'Password',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                      TextFormField(
+                      CustomInput(
+                        label: 'Password',
+                        icon: Icons.lock_outline,
                         controller: _passController,
-                        obscureText: _obscurePassword,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                        decoration: InputDecoration(
-                          helperText: '',
-                          suffixIcon: InkWell(
-                            onTap: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            ),
-                            child: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                              color: Colors.white54,
-                              size: 18,
-                            ),
-                          ),
-                        ),
+                        isPassword: true,
                         validator: Validators.password,
                       ),
                       const SizedBox(height: 20),
-
-                      const Text(
-                        'Confirm Password',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                      TextFormField(
+                      CustomInput(
+                        label: 'Confirm Password',
+                        icon: Icons.lock_outline,
                         controller: _confirmPassController,
-                        obscureText: _obscureConfirmPassword,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                        decoration: InputDecoration(
-                          helperText: '',
-                          suffixIcon: InkWell(
-                            onTap: () => setState(
-                              () => _obscureConfirmPassword =
-                                  !_obscureConfirmPassword,
-                            ),
-                            child: Icon(
-                              _obscureConfirmPassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                              color: Colors.white54,
-                              size: 18,
-                            ),
-                          ),
-                        ),
+                        isPassword: true,
                         validator: (v) => v != _passController.text
                             ? "Passwords do not match"
                             : null,

@@ -5,6 +5,8 @@ class SimilarityManager:
     def calculate_cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
         if not vec1 or not vec2:
             return 0.0
+        if len(vec1) != len(vec2):
+            return 0.0
         
         a = np.array(vec1)
         b = np.array(vec2)

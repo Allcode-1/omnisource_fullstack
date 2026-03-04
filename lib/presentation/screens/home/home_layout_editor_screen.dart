@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../core/storage/home_layout_prefs.dart';
 
 class HomeLayoutEditorScreen extends StatefulWidget {
@@ -87,10 +88,22 @@ class _HomeLayoutEditorScreenState extends State<HomeLayoutEditorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Home Layout Editor'),
+        foregroundColor: Colors.white,
+        title: const Text(
+          'Home Layout Editor',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
         actions: [
-          TextButton(onPressed: _reset, child: const Text('Reset')),
-          TextButton(onPressed: _save, child: const Text('Save')),
+          TextButton(
+            onPressed: _reset,
+            style: TextButton.styleFrom(foregroundColor: Colors.white70),
+            child: const Text('Reset'),
+          ),
+          TextButton(
+            onPressed: _save,
+            style: TextButton.styleFrom(foregroundColor: AppTheme.primary),
+            child: const Text('Save'),
+          ),
         ],
       ),
       body: ReorderableListView.builder(
@@ -106,9 +119,11 @@ class _HomeLayoutEditorScreenState extends State<HomeLayoutEditorScreen> {
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF16213A),
+              color: Theme.of(
+                context,
+              ).colorScheme.surface.withValues(alpha: 0.94),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white10),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
             ),
             child: Row(
               children: [

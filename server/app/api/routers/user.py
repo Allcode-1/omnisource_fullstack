@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from beanie.exceptions import RevisionIdWasChanged
+from pymongo.errors import DuplicateKeyError
 from app.models.user import User
 from app.models.interaction import Interaction
 from app.models.content_meta import Playlist
@@ -21,10 +23,42 @@ async def get_me(current_user: User = Depends(get_current_user)):
 @router.patch("/update", response_model=UserRead)
 async def update_user(data: UserUpdate, current_user: User = Depends(get_current_user)):
     update_dict = data.model_dump(exclude_unset=True)
+    if not update_dict:
+        return current_user
+
     for key, value in update_dict.items():
         setattr(current_user, key, value)
-    
-    await current_user.save()
+
+    try:
+        await current_user.save()
+    except DuplicateKeyError as exc:
+        logger.warning(
+            "User update conflict (duplicate key): user=%s fields=%s",
+            current_user.id,
+            list(update_dict.keys()),
+        )
+        raise HTTPException(status_code=409, detail="Username is already taken") from exc
+    except RevisionIdWasChanged as exc:
+        if isinstance(exc.__cause__, DuplicateKeyError):
+            logger.warning(
+                "User update conflict (duplicate key via revision wrapper): user=%s fields=%s",
+                current_user.id,
+                list(update_dict.keys()),
+            )
+            raise HTTPException(
+                status_code=409,
+                detail="Username is already taken",
+            ) from exc
+        logger.warning(
+            "User update revision conflict: user=%s fields=%s",
+            current_user.id,
+            list(update_dict.keys()),
+        )
+        raise HTTPException(
+            status_code=409,
+            detail="Profile changed in another session. Please retry.",
+        ) from exc
+
     logger.info("User updated id=%s fields=%s", current_user.id, list(update_dict.keys()))
     return current_user
 

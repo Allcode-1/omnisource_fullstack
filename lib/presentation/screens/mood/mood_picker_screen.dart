@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/content_repository.dart';
+import '../../widgets/secondary_header_sliver.dart';
 import '../search/search_grid_card.dart';
 
 class MoodPickerScreen extends StatefulWidget {
@@ -127,31 +128,18 @@ class _MoodPickerScreenState extends State<MoodPickerScreen> {
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          const SliverToBoxAdapter(child: SizedBox(height: 56)),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Mood Picker',
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
-              ),
-            ),
+          const SecondaryHeaderSliver(
+            title: 'Mood Picker',
+            subtitle: 'Pick a mood and get an instant curated feed',
+            infoLabel: 'Quick mood presets tuned by tags and content type',
+            infoIcon: CupertinoIcons.layers_alt_fill,
           ),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Text(
-                'Pick a mood and get an instant curated feed',
-                style: TextStyle(color: Colors.white54, fontSize: 14),
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 12)),
+          const SliverToBoxAdapter(child: SizedBox(height: 14)),
           SliverToBoxAdapter(
             child: SizedBox(
               height: 124,
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 scrollDirection: Axis.horizontal,
                 itemCount: _moods.length,
                 itemBuilder: (context, index) {
@@ -168,7 +156,7 @@ class _MoodPickerScreenState extends State<MoodPickerScreen> {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 2, 16, 0),
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -255,7 +243,7 @@ class _MoodPickerScreenState extends State<MoodPickerScreen> {
             )
           else
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               sliver: SliverGrid(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,

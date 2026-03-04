@@ -9,6 +9,7 @@ import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/analytics_repository.dart';
 import '../../bloc/library/library_cubit.dart';
 import '../../bloc/library/library_state.dart';
+import '../../widgets/secondary_header_sliver.dart';
 import '../search/search_grid_card.dart';
 
 class SmartLibraryScreen extends StatefulWidget {
@@ -100,28 +101,15 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-              const SliverToBoxAdapter(child: SizedBox(height: 56)),
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'Library Insights',
-                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ),
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: Text(
-                    'Behavior, quality and usage health of your library',
-                    style: TextStyle(color: Colors.white54, fontSize: 14),
-                  ),
-                ),
+              const SecondaryHeaderSliver(
+                title: 'Library Insights',
+                subtitle: 'Behavior, quality and usage health of your library',
+                infoLabel: 'Track favorites, playlists, engagement and quality',
+                infoIcon: CupertinoIcons.chart_bar_alt_fill,
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
                   child: Row(
                     children: [
                       Expanded(
@@ -143,7 +131,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                   child: Row(
                     children: [
                       Expanded(
@@ -173,7 +161,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
               else if (_analyticsError.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -193,7 +181,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
               else if (usage != null)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                     child: Row(
                       children: [
                         Expanded(
@@ -216,7 +204,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
                 ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                   child: Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -267,7 +255,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                   child: Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -318,7 +306,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                   child: Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -380,7 +368,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
               ),
               const SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(16, 20, 16, 12),
+                  padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
                   child: Text(
                     'Recently Liked',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
@@ -388,7 +376,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
                 ),
               ),
               SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 sliver: SliverGrid(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,

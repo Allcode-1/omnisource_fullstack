@@ -202,6 +202,31 @@ async def test_get_recommendations_scores_and_sorts_candidates(monkeypatch) -> N
 
 
 @pytest.mark.asyncio
+async def test_get_recommendations_skips_dimension_mismatch_vectors(monkeypatch) -> None:
+    _FakeInteractionModel._rows = [
+        _FakeInteractionDoc(user_id="u1", ext_id="seed1", type="like", weight=1.0),
+        _FakeInteractionDoc(user_id="u1", ext_id="seed2", type="view", weight=0.2),
+    ]
+    _FakeContentMetadata._docs = {
+        "seed1": _FakeContentDoc(ext_id="seed1", type="movie", title="Seed 1", features_vector=[1.0, 0.0], rating=8.0),
+        "seed2": _FakeContentDoc(ext_id="seed2", type="movie", title="Seed 2", features_vector=[1.0, 0.0, 0.0], rating=7.0),
+        "candA": _FakeContentDoc(ext_id="candA", type="movie", title="A", features_vector=[1.0, 0.0], rating=9.0),
+        "candB": _FakeContentDoc(ext_id="candB", type="movie", title="B", features_vector=[1.0, 0.0, 0.0], rating=10.0),
+    }
+    _patch_common(monkeypatch)
+    engine = RecommenderEngine()
+
+    monkeypatch.setattr(
+        engine.similarity,
+        "calculate_cosine_similarity",
+        lambda left, right: 1.0 if right == [1.0, 0.0] else -1.0,
+    )
+
+    result = await engine.get_recommendations("u1", content_type="movie", limit=5)
+    assert [item.ext_id for item in result] == ["candA"]
+
+
+@pytest.mark.asyncio
 async def test_get_deep_research_returns_cached_payload(monkeypatch) -> None:
     fake_redis = _patch_common(monkeypatch)
     cached = [_content("cached", "movie").model_dump()]
@@ -255,6 +280,32 @@ async def test_get_deep_research_scores_candidates_and_merges_discovery(monkeypa
     result = await engine.get_deep_research("tag", content_type="movie", limit=2)
     assert [item.external_id for item in result] == ["v1", "extra"]
     assert fake_redis.set_calls
+
+
+@pytest.mark.asyncio
+async def test_get_deep_research_skips_dimension_mismatch_vectors(monkeypatch) -> None:
+    _patch_common(monkeypatch)
+    _FakeContentMetadata._docs = {
+        "v1": _FakeContentDoc(ext_id="v1", type="movie", title="V1", features_vector=[1.0, 0.0], rating=7.0),
+        "v2": _FakeContentDoc(ext_id="v2", type="movie", title="V2", features_vector=[0.2, 0.8, 0.1], rating=6.0),
+    }
+    engine = RecommenderEngine()
+    engine.MIN_DEEP_VECTOR_CANDIDATES = 1
+
+    monkeypatch.setattr(engine_module, "get_vectorizer", lambda: _FakeVectorizer([1.0, 0.0]))
+    monkeypatch.setattr(
+        engine.similarity,
+        "calculate_cosine_similarity",
+        lambda left, right: 1.0 if right == [1.0, 0.0] else -1.0,
+    )
+
+    async def fake_discovery(tag: str):
+        return [_content("extra", "movie")]
+
+    monkeypatch.setattr(engine.content_service, "get_discovery", fake_discovery)
+
+    result = await engine.get_deep_research("tag", content_type="movie", limit=2)
+    assert [item.external_id for item in result] == ["v1", "extra"]
 
 
 @pytest.mark.asyncio

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/content_repository.dart';
+import '../../widgets/secondary_header_sliver.dart';
 
 class ReleaseCalendarScreen extends StatefulWidget {
   const ReleaseCalendarScreen({super.key});
@@ -133,29 +134,16 @@ class _ReleaseCalendarScreenState extends State<ReleaseCalendarScreen> {
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          const SliverToBoxAdapter(child: SizedBox(height: 56)),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Release Calendar',
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Text(
-                'Timeline of releases with type filtering',
-                style: TextStyle(color: Colors.white54, fontSize: 14),
-              ),
-            ),
+          const SecondaryHeaderSliver(
+            title: 'Release Calendar',
+            subtitle: 'Timeline of releases with type filtering',
+            infoLabel: 'See recent and upcoming drops grouped by month',
+            infoIcon: CupertinoIcons.calendar_today,
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 14)),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: _CalendarFilters(
                 activeType: _activeType,
                 upcomingOnly: _showUpcomingOnly,
@@ -197,7 +185,7 @@ class _ReleaseCalendarScreenState extends State<ReleaseCalendarScreen> {
               delegate: SliverChildBuilderDelegate((context, index) {
                 final section = sections[index];
                 return Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

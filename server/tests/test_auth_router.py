@@ -346,6 +346,39 @@ def test_reset_password_updates_user_and_deletes_reset_token(monkeypatch) -> Non
     assert active_entry.deleted is True
 
 
+def test_reset_password_accepts_deep_link_token(monkeypatch) -> None:
+    _patch_query_fields(monkeypatch)
+    active_entry = _FakeResetEntry(
+        email="neo@test.dev",
+        token="active-token",
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+    )
+    user = _FakeUser(email="neo@test.dev", hashed_password="old-hash")
+
+    async def fake_reset_find_one(condition, *args, **kwargs):
+        assert condition == ("token", "active-token")
+        return active_entry
+
+    async def fake_user_find_one(*args, **kwargs):
+        return user
+
+    monkeypatch.setattr(auth_router.PasswordReset, "find_one", fake_reset_find_one)
+    monkeypatch.setattr(auth_router.User, "find_one", fake_user_find_one)
+    monkeypatch.setattr(auth_router, "get_password_hash", lambda pwd: f"hashed::{pwd}")
+    client = TestClient(_build_app())
+
+    response = client.post(
+        "/auth/reset-password",
+        json={
+            "token": "  omnisource://reset-password?token=active-token \n",
+            "new_password": "StrongPass1!",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["message"] == "Password updated successfully"
+    assert user.saved is True
+
+
 def test_reset_password_accepts_naive_expiration_datetime(monkeypatch) -> None:
     _patch_query_fields(monkeypatch)
     # naive datetime branch should be interpreted as UTC and still work

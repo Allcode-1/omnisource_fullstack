@@ -1,4 +1,5 @@
 import asyncio
+from collections import Counter
 from typing import Optional, List
 from app.models.interaction import Interaction
 from app.models.content_meta import ContentMetadata
@@ -97,21 +98,38 @@ class RecommenderEngine:
         ).to_list()
 
         weighted_vectors = []
-        total_weight = 0.0
+        vector_dims: Counter[int] = Counter()
         for doc in interaction_docs:
             if not doc.features_vector:
                 continue
             weight = interaction_weight_by_id.get(doc.ext_id, 0.0)
             if weight <= 0:
                 continue
-            weighted_vectors.append(np.array(doc.features_vector) * weight)
-            total_weight += weight
+            vector_dims[len(doc.features_vector)] += 1
+            weighted_vectors.append((np.array(doc.features_vector), weight))
 
-        if not weighted_vectors or total_weight == 0:
+        if not weighted_vectors:
             logger.info("No vectors in interaction docs for user=%s", user_id)
             return []
 
-        user_profile_vector = (np.sum(weighted_vectors, axis=0) / total_weight).tolist()
+        target_dim = vector_dims.most_common(1)[0][0]
+        total_weight = 0.0
+        compatible_weighted_vectors = []
+        skipped_history_mismatch = 0
+        for vector, weight in weighted_vectors:
+            if vector.shape[0] != target_dim:
+                skipped_history_mismatch += 1
+                continue
+            compatible_weighted_vectors.append(vector * weight)
+            total_weight += weight
+
+        if not compatible_weighted_vectors or total_weight == 0:
+            logger.info("No vectors in interaction docs for user=%s", user_id)
+            return []
+
+        user_profile_vector = (
+            np.sum(compatible_weighted_vectors, axis=0) / total_weight
+        ).tolist()
 
         # Exclude already seen content and skip docs without vectors.
         candidates_filter: dict[str, object] = {
@@ -123,8 +141,12 @@ class RecommenderEngine:
         candidates = await ContentMetadata.find(candidates_filter).to_list()
 
         scored_results = []
+        skipped_candidates_mismatch = 0
         for item in candidates:
             if not item.features_vector:
+                continue
+            if len(item.features_vector) != target_dim:
+                skipped_candidates_mismatch += 1
                 continue
 
             similarity_score = self.similarity.calculate_cosine_similarity(
@@ -138,12 +160,15 @@ class RecommenderEngine:
         scored_results.sort(key=lambda x: x[0], reverse=True)
 
         logger.info(
-            "ML filtering completed: user_id=%s events=%s candidates=%s scored=%s returned=%s",
+            "ML filtering completed: user_id=%s events=%s candidates=%s scored=%s returned=%s target_dim=%s skipped_history_mismatch=%s skipped_candidates_mismatch=%s",
             user_id,
             len(interactions),
             len(candidates),
             len(scored_results),
             min(limit, len(scored_results)),
+            target_dim,
+            skipped_history_mismatch,
+            skipped_candidates_mismatch,
         )
         return [item for _, item in scored_results[:limit]]
 
@@ -192,19 +217,25 @@ class RecommenderEngine:
         if not tag_vector:
             logger.warning("Tag vector is empty for tag=%s", tag)
             return await _return_discovery("empty_tag_vector")
+        tag_dim = len(tag_vector)
 
         query_filter: dict[str, object] = {"features_vector.0": {"$exists": True}}
         if content_type and content_type != "all":
             query_filter["type"] = content_type
         candidates = await ContentMetadata.find(query_filter).to_list()
+        compatible_candidates = [
+            item
+            for item in candidates
+            if item.features_vector and len(item.features_vector) == tag_dim
+        ]
 
-        if len(candidates) < self.MIN_DEEP_VECTOR_CANDIDATES:
+        if len(compatible_candidates) < self.MIN_DEEP_VECTOR_CANDIDATES:
             return await _return_discovery(
-                f"small_vector_pool_{len(candidates)}"
+                f"small_vector_pool_{len(compatible_candidates)}"
             )
 
         scored_results = []
-        for item in candidates:
+        for item in compatible_candidates:
             if not item.features_vector:
                 continue
 
@@ -239,9 +270,10 @@ class RecommenderEngine:
             expire=900,
         )
         logger.info(
-            "Deep research filtering completed: tag=%s candidates=%s matched=%s returned=%s",
+            "Deep research filtering completed: tag=%s candidates=%s compatible_candidates=%s matched=%s returned=%s",
             tag,
             len(candidates),
+            len(compatible_candidates),
             len(filtered),
             len(result),
         )

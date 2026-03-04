@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/analytics_repository.dart';
 import '../../bloc/library/library_cubit.dart';
@@ -15,7 +16,9 @@ class SearchGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final imageUrl = (item.imageUrl ?? '').trim();
+
     return BlocBuilder<LibraryCubit, LibraryState>(
       builder: (context, state) {
         final isLiked = state is LibraryLoaded
@@ -49,7 +52,7 @@ class SearchGridCard extends StatelessWidget {
             children: [
               Expanded(
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(16),
                   child: Stack(
                     children: [
                       Positioned.fill(
@@ -58,75 +61,48 @@ class SearchGridCard extends StatelessWidget {
                                 imageUrl,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, error, stackTrace) =>
-                                    _buildImageFallback(),
+                                    _buildImageFallback(theme),
                               )
-                            : _buildImageFallback(),
+                            : _buildImageFallback(theme),
+                      ),
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [
+                                Colors.black.withValues(alpha: 0.32),
+                                Colors.transparent,
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                       Positioned(
                         top: 8,
                         left: 8,
-                        child: GestureDetector(
+                        child: _CircleAction(
+                          icon: CupertinoIcons.ellipsis,
                           onTap: () => ContentQuickActions.show(
                             context,
                             item,
                             source: 'search',
-                          ),
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: const Color(0x7A0A1020),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              CupertinoIcons.ellipsis,
-                              color: Colors.white,
-                              size: 16,
-                            ),
                           ),
                         ),
                       ),
                       Positioned(
                         top: 8,
                         right: 8,
-                        child: GestureDetector(
+                        child: _CircleAction(
+                          icon: isLiked
+                              ? CupertinoIcons.heart_fill
+                              : CupertinoIcons.heart,
+                          iconColor: isLiked
+                              ? const Color(0xFFFF6B7A)
+                              : Colors.white,
                           onTap: () =>
                               context.read<LibraryCubit>().toggleFavorite(item),
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: const Color(0x7A0A1020),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              isLiked
-                                  ? CupertinoIcons.heart_fill
-                                  : CupertinoIcons.heart,
-                              color: isLiked
-                                  ? const Color(0xFFFF6B7A)
-                                  : Colors.white,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Градиент снизу (App Store стиль)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        height: 60,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [
-                                const Color(0xCC040914),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
                         ),
                       ),
                     ],
@@ -138,27 +114,67 @@ class SearchGridCard extends StatelessWidget {
                 item.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: theme.textTheme.titleMedium?.copyWith(
                   color: Colors.white,
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 2),
-              Text(
-                item.subtitle ?? '',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 12,
-                ),
+              Row(
+                children: [
+                  Icon(
+                    _getIconData(item.type),
+                    size: 12,
+                    color: Colors.white.withValues(alpha: 0.58),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _typeLabel(item.type),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.62),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+                  if (item.rating > 0) ...[
+                    const SizedBox(width: 6),
+                    Text(
+                      '• ${item.rating.toStringAsFixed(1)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.48),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ],
               ),
+              if ((item.subtitle ?? '').isNotEmpty)
+                Text(
+                  item.subtitle!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.46),
+                    fontSize: 12,
+                  ),
+                ),
             ],
           ),
         );
       },
     );
+  }
+
+  String _typeLabel(String? type) {
+    switch (type) {
+      case 'movie':
+        return 'Movie';
+      case 'book':
+        return 'Book';
+      default:
+        return 'Music';
+    }
   }
 
   IconData _getIconData(String? type) {
@@ -172,10 +188,37 @@ class SearchGridCard extends StatelessWidget {
     }
   }
 
-  Widget _buildImageFallback() {
+  Widget _buildImageFallback(ThemeData theme) {
     return Container(
-      color: const Color(0xFF1A2743),
+      color: theme.cardColor.withValues(alpha: 0.92),
       child: Icon(_getIconData(item.type), color: Colors.white24, size: 40),
+    );
+  }
+}
+
+class _CircleAction extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final VoidCallback onTap;
+
+  const _CircleAction({
+    required this.icon,
+    this.iconColor = Colors.white,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: const BoxDecoration(
+          color: Color(0x66000000),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, size: 17, color: iconColor),
+      ),
     );
   }
 }

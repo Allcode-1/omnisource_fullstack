@@ -12,7 +12,6 @@ import '../../bloc/library/library_state.dart';
 import '../../bloc/search/search_cubit.dart';
 import '../../bloc/search/search_state.dart';
 import '../calendar/release_calendar_screen.dart';
-import '../comparison/content_comparison_screen.dart';
 import '../mood/mood_picker_screen.dart';
 import '../profile/profile_screen.dart';
 import 'search_grid_card.dart';
@@ -82,7 +81,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: _buildSearchBar(context),
                     ),
                   ),
@@ -91,7 +90,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: _buildTopActions(context, state),
                     ),
                   ),
@@ -100,7 +99,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: _buildFeatureShortcuts(context),
                     ),
                   ),
@@ -109,7 +108,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: _buildFilters(context, state.activeType),
                     ),
                   ),
@@ -142,7 +141,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     _buildEmptyState(_searchController.text.isEmpty)
                   else
                     SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
                       sliver: SliverGrid(
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
@@ -190,7 +189,7 @@ class _SearchScreenState extends State<SearchScreen> {
             : "U";
 
         return Container(
-          padding: const EdgeInsets.fromLTRB(16, 50, 16, 10),
+          padding: const EdgeInsets.fromLTRB(20, 54, 20, 10),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
@@ -206,9 +205,10 @@ class _SearchScreenState extends State<SearchScreen> {
             children: [
               Text(
                 "Search",
-                style: Theme.of(
-                  context,
-                ).textTheme.headlineSmall?.copyWith(fontSize: 30),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               GestureDetector(
                 onTap: () {
@@ -223,12 +223,14 @@ class _SearchScreenState extends State<SearchScreen> {
                 },
                 child: CircleAvatar(
                   radius: 18,
-                  backgroundColor: const Color(0xFF1E2A47),
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
                   child: Text(
                     safeLetter,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -280,11 +282,6 @@ class _SearchScreenState extends State<SearchScreen> {
         label: 'Release Calendar',
         icon: CupertinoIcons.calendar_today,
         page: const ReleaseCalendarScreen(),
-      ),
-      (
-        label: 'Compare 2-3',
-        icon: CupertinoIcons.rectangle_split_3x1_fill,
-        page: const ContentComparisonScreen(),
       ),
     ];
 
@@ -397,7 +394,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 18),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0xFF5AA9FF)
+                      ? AppTheme.primary
                       : Theme.of(context).cardColor.withValues(alpha: 0.82),
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -421,7 +418,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _buildSearchHistory(BuildContext context, SearchState state) {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
