@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import asyncio
 from collections import Counter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 
 from pymongo.errors import DuplicateKeyError
 
 from app.core.logging import get_logger
+from app.core.content_keys import make_content_key
 from app.models.content_meta import ContentMetadata
 from app.models.interaction import Interaction
 from app.models.user import User
@@ -20,6 +21,10 @@ from app.schemas.analytics import (
 )
 
 logger = get_logger(__name__)
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class AnalyticsService:
@@ -44,7 +49,23 @@ class AnalyticsService:
 
         if payload.ext_id and payload.ext_id != "app" and payload.content_type:
             try:
-                doc = await ContentMetadata.find_one(ContentMetadata.ext_id == payload.ext_id)
+                content_key = make_content_key(payload.content_type, payload.ext_id)
+                supports_content_key = hasattr(ContentMetadata, "content_key")
+                doc = None
+                if supports_content_key and content_key:
+                    doc = await ContentMetadata.find_one(
+                        ContentMetadata.content_key == content_key,
+                    )
+                if doc is None:
+                    if hasattr(ContentMetadata, "type"):
+                        doc = await ContentMetadata.find_one(
+                            ContentMetadata.ext_id == payload.ext_id,
+                            ContentMetadata.type == payload.content_type,
+                        )
+                    else:
+                        doc = await ContentMetadata.find_one(
+                            ContentMetadata.ext_id == payload.ext_id,
+                        )
                 title = str(payload.meta.get("title") or payload.ext_id)
                 subtitle = payload.meta.get("subtitle")
                 image_url = payload.meta.get("image_url")
@@ -63,17 +84,20 @@ class AnalyticsService:
                         embedding_text,
                     )
                     try:
-                        await ContentMetadata(
-                            ext_id=payload.ext_id,
-                            type=payload.content_type,
-                            title=title,
-                            subtitle=subtitle,
-                            image_url=image_url,
-                            rating=safe_rating,
-                            genres=[str(item) for item in genres if item],
-                            release_date=release_date,
-                            features_vector=vector,
-                        ).insert()
+                        doc_payload = {
+                            "ext_id": payload.ext_id,
+                            "type": payload.content_type,
+                            "title": title,
+                            "subtitle": subtitle,
+                            "image_url": image_url,
+                            "rating": safe_rating,
+                            "genres": [str(item) for item in genres if item],
+                            "release_date": release_date,
+                            "features_vector": vector,
+                        }
+                        if supports_content_key and content_key:
+                            doc_payload["content_key"] = content_key
+                        await ContentMetadata(**doc_payload).insert()
                     except DuplicateKeyError:
                         logger.info(
                             "Content metadata already exists (race): ext_id=%s",
@@ -81,6 +105,9 @@ class AnalyticsService:
                         )
                 else:
                     updated = False
+                    if content_key and hasattr(doc, "content_key") and doc.content_key != content_key:
+                        doc.content_key = content_key
+                        updated = True
                     if not doc.title and title:
                         doc.title = title
                         updated = True
@@ -100,14 +127,21 @@ class AnalyticsService:
         if ranking_variant:
             meta.setdefault("ranking_variant", ranking_variant)
 
-        interaction = Interaction(
-            user_id=user_id,
-            ext_id=payload.ext_id or "app",
-            content_type=payload.content_type,
-            type=payload.type,
-            weight=weight,
-            meta=meta,
-        )
+        interaction_payload = {
+            "user_id": user_id,
+            "ext_id": payload.ext_id or "app",
+            "content_type": payload.content_type,
+            "type": payload.type,
+            "weight": weight,
+            "meta": meta,
+        }
+        if hasattr(Interaction, "content_key") and payload.ext_id and payload.ext_id != "app":
+            interaction_payload["content_key"] = make_content_key(
+                payload.content_type,
+                payload.ext_id,
+            ) or None
+
+        interaction = Interaction(**interaction_payload)
         await interaction.insert()
 
         logger.info(
@@ -127,15 +161,53 @@ class AnalyticsService:
             .limit(limit)
             .to_list()
         )
-        ext_ids = [item.ext_id for item in interactions if item.ext_id and item.ext_id != "app"]
+        refs = [
+            getattr(item, "content_key", None)
+            or make_content_key(getattr(item, "content_type", None), item.ext_id)
+            or item.ext_id
+            for item in interactions
+            if item.ext_id and item.ext_id != "app"
+        ]
         meta_map: Dict[str, ContentMetadata] = {}
-        if ext_ids:
-            docs = await ContentMetadata.find({"ext_id": {"$in": ext_ids}}).to_list()
-            meta_map = {doc.ext_id: doc for doc in docs}
+        if refs:
+            supports_content_key = hasattr(ContentMetadata, "content_key")
+            for ref in refs:
+                doc = None
+                if ":" in ref:
+                    ref_type, ref_ext_id = ref.split(":", 1)
+                    if supports_content_key:
+                        doc = await ContentMetadata.find_one(ContentMetadata.content_key == ref)
+                    if doc is None:
+                        if hasattr(ContentMetadata, "type"):
+                            doc = await ContentMetadata.find_one(
+                                ContentMetadata.ext_id == ref_ext_id,
+                                ContentMetadata.type == ref_type,
+                            )
+                        else:
+                            doc = await ContentMetadata.find_one(
+                                ContentMetadata.ext_id == ref_ext_id,
+                            )
+                else:
+                    doc = await ContentMetadata.find_one(ContentMetadata.ext_id == ref)
+                if doc is None:
+                    continue
+                canonical = (
+                    getattr(doc, "content_key", None)
+                    or make_content_key(doc.type, doc.ext_id)
+                    or doc.ext_id
+                )
+                meta_map.setdefault(ref, doc)
+                meta_map.setdefault(canonical, doc)
+                meta_map.setdefault(doc.ext_id, doc)
 
         timeline: List[TimelineItem] = []
         for item in interactions:
-            doc = meta_map.get(item.ext_id)
+            ref = (
+                getattr(item, "content_key", None)
+                or make_content_key(getattr(item, "content_type", None), item.ext_id)
+                or item.ext_id
+            )
+            doc = meta_map.get(ref)
             timeline.append(
                 TimelineItem(
                     id=str(item.id),
@@ -152,7 +224,7 @@ class AnalyticsService:
         return timeline
 
     async def get_stats(self, user_id: str, days: int = 30) -> UserStats:
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = _utc_now() - timedelta(days=days)
         interactions = await Interaction.find(
             Interaction.user_id == user_id,
             Interaction.created_at >= cutoff,
@@ -212,7 +284,7 @@ class AnalyticsService:
 
     async def get_notifications(self, user: User) -> List[NotificationItem]:
         stats = await self.get_stats(str(user.id), days=14)
-        now = datetime.utcnow()
+        now = _utc_now()
         notifications: List[NotificationItem] = []
 
         notifications.append(

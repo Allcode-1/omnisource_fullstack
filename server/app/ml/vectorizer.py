@@ -1,5 +1,6 @@
 import re
 import threading
+import hashlib
 from typing import List, Optional
 
 import numpy as np
@@ -52,9 +53,10 @@ class ContentVectorizer:
             return vec.tolist()
 
         for token in text.split():
-            token_hash = abs(hash(token))
+            digest = hashlib.blake2b(token.encode("utf-8"), digest_size=16).digest()
+            token_hash = int.from_bytes(digest[:8], byteorder="big", signed=False)
             index = token_hash % dim
-            sign = -1.0 if (token_hash % 2) else 1.0
+            sign = -1.0 if (digest[8] % 2) else 1.0
             vec[index] += sign
 
         norm = np.linalg.norm(vec)

@@ -1,11 +1,12 @@
 import asyncio
 import time
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
-from typing import List, Dict
+from typing import List
+from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.redis import redis_client
 from app.services.content_service import ContentService
@@ -26,55 +27,127 @@ _ALLOWED_IMAGE_HOSTS = {
     "books.googleusercontent.com",
     "lh3.googleusercontent.com",
 }
-_IMAGE_CACHE_TTL_SECONDS = 3600
-_IMAGE_CACHE_MAX_ITEMS = 500
-_image_cache: dict[str, tuple[float, bytes, str]] = {}
+_IMAGE_CACHE_TTL_SECONDS = settings.IMAGE_PROXY_CACHE_TTL_SECONDS
+_IMAGE_CACHE_MAX_ITEMS = settings.IMAGE_PROXY_CACHE_MAX_ITEMS
+_IMAGE_MAX_BYTES = settings.IMAGE_PROXY_MAX_BYTES_PER_ITEM
+_IMAGE_CACHE_MAX_TOTAL_BYTES = settings.IMAGE_PROXY_CACHE_MAX_TOTAL_BYTES
+_MAX_IMAGE_REDIRECTS = settings.IMAGE_PROXY_MAX_REDIRECTS
+_image_cache: dict[str, tuple[float, bytes, str, int]] = {}
+_image_cache_total_bytes = 0
 _image_cache_lock = asyncio.Lock()
 _image_inflight: dict[str, asyncio.Task[tuple[bytes, str]]] = {}
 
 
 async def _read_cached_image(url: str) -> tuple[bytes, str] | None:
+    global _image_cache_total_bytes
     now = time.time()
     async with _image_cache_lock:
         payload = _image_cache.get(url)
         if payload is None:
             return None
-        expires_at, content, content_type = payload
+        expires_at, content, content_type, size_bytes = payload
         if expires_at <= now:
             _image_cache.pop(url, None)
+            _image_cache_total_bytes = max(0, _image_cache_total_bytes - size_bytes)
             return None
         return content, content_type
 
 
 async def _write_cached_image(url: str, content: bytes, content_type: str) -> None:
+    global _image_cache_total_bytes
+    content_size = len(content)
+    if content_size > _IMAGE_CACHE_MAX_TOTAL_BYTES:
+        return
+
     async with _image_cache_lock:
-        if len(_image_cache) >= _IMAGE_CACHE_MAX_ITEMS:
+        now = time.time()
+        expired_keys = [
+            key
+            for key, (expires_at, _, _, _) in _image_cache.items()
+            if expires_at <= now
+        ]
+        for key in expired_keys:
+            _, _, _, old_size = _image_cache.pop(key)
+            _image_cache_total_bytes = max(0, _image_cache_total_bytes - old_size)
+
+        if url in _image_cache:
+            _, _, _, existing_size = _image_cache.pop(url)
+            _image_cache_total_bytes = max(0, _image_cache_total_bytes - existing_size)
+
+        while (
+            len(_image_cache) >= _IMAGE_CACHE_MAX_ITEMS
+            or _image_cache_total_bytes + content_size > _IMAGE_CACHE_MAX_TOTAL_BYTES
+        ) and _image_cache:
             oldest_key = min(_image_cache, key=lambda key: _image_cache[key][0])
-            _image_cache.pop(oldest_key, None)
-        _image_cache[url] = (time.time() + _IMAGE_CACHE_TTL_SECONDS, content, content_type)
+            _, _, _, oldest_size = _image_cache.pop(oldest_key)
+            _image_cache_total_bytes = max(0, _image_cache_total_bytes - oldest_size)
+
+        _image_cache[url] = (
+            time.time() + _IMAGE_CACHE_TTL_SECONDS,
+            content,
+            content_type,
+            content_size,
+        )
+        _image_cache_total_bytes += content_size
+
+
+def _validate_image_url(raw_url: str) -> str:
+    parsed = urlparse(raw_url)
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme not in {"http", "https"} or not host:
+        raise HTTPException(status_code=400, detail="Invalid image URL")
+    if host not in _ALLOWED_IMAGE_HOSTS and not host.endswith(".googleusercontent.com"):
+        raise HTTPException(status_code=400, detail="Image host is not allowed")
+    return raw_url
 
 
 async def _fetch_image(url: str) -> tuple[bytes, str]:
+    current_url = _validate_image_url(url)
     try:
-        async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
-            upstream = await client.get(url, headers={"User-Agent": "OmniSource/1.0"})
+        async with httpx.AsyncClient(timeout=8.0, follow_redirects=False) as client:
+            for _ in range(_MAX_IMAGE_REDIRECTS + 1):
+                upstream = await client.get(
+                    current_url,
+                    headers={"User-Agent": "OmniSource/1.0"},
+                )
+                status = upstream.status_code
+                if status in (301, 302, 303, 307, 308):
+                    location = upstream.headers.get("location")
+                    if not location:
+                        raise HTTPException(status_code=502, detail="Invalid redirect response")
+                    current_url = _validate_image_url(urljoin(current_url, location))
+                    continue
+
+                if status != 200:
+                    logger.warning(
+                        "Image proxy upstream status=%s url=%s",
+                        status,
+                        current_url,
+                    )
+                    raise HTTPException(status_code=502, detail="Unable to fetch image")
+
+                content_type = (
+                    (upstream.headers.get("content-type") or "image/jpeg")
+                    .split(";")[0]
+                    .strip()
+                )
+                if not content_type.startswith("image/"):
+                    raise HTTPException(status_code=400, detail="URL does not point to an image")
+
+                header_length = upstream.headers.get("content-length")
+                if header_length and header_length.isdigit() and int(header_length) > _IMAGE_MAX_BYTES:
+                    raise HTTPException(status_code=413, detail="Image is too large")
+
+                content = upstream.content
+                if len(content) > _IMAGE_MAX_BYTES:
+                    raise HTTPException(status_code=413, detail="Image is too large")
+                return content, content_type
+            raise HTTPException(status_code=502, detail="Too many redirects")
     except Exception as exc:
+        if isinstance(exc, HTTPException):
+            raise
         logger.warning("Image proxy fetch failed url=%s error=%s", url, type(exc).__name__)
         raise HTTPException(status_code=502, detail="Unable to fetch image")
-
-    if upstream.status_code != 200:
-        logger.warning(
-            "Image proxy upstream status=%s url=%s",
-            upstream.status_code,
-            url,
-        )
-        raise HTTPException(status_code=502, detail="Unable to fetch image")
-
-    content_type = (upstream.headers.get("content-type") or "image/jpeg").split(";")[0].strip()
-    if not content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="URL does not point to an image")
-
-    return upstream.content, content_type
 
 @router.get("/search", response_model=List[UnifiedContent])
 async def search(
@@ -94,13 +167,7 @@ async def discover(tag: str = Query(...)):
 
 @router.get("/image-proxy")
 async def image_proxy(url: str = Query(..., min_length=8, max_length=1500)):
-    parsed = urlparse(url)
-    host = (parsed.hostname or "").lower()
-    if parsed.scheme not in {"http", "https"} or not host:
-        raise HTTPException(status_code=400, detail="Invalid image URL")
-
-    if host not in _ALLOWED_IMAGE_HOSTS and not host.endswith(".googleusercontent.com"):
-        raise HTTPException(status_code=400, detail="Image host is not allowed")
+    _validate_image_url(url)
 
     cached = await _read_cached_image(url)
     if cached is not None:
@@ -138,7 +205,10 @@ async def trending(type: str = Query("all")):
     for category_list in data.values():
         all_items.extend(category_list)
     
-    unique_items = {item.external_id: item for item in all_items}.values()
+    unique_items = {
+        f"{item.type}:{item.external_id}": item
+        for item in all_items
+    }.values()
     result = list(unique_items)
     
     return sorted(result, key=lambda x: getattr(x, "rating", 0) or 0, reverse=True)

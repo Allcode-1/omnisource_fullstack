@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -115,7 +115,7 @@ class _FakeInteractionDoc:
         self.ext_id = ext_id
         self.type = type
         self.weight = weight
-        self.created_at = datetime.utcnow()
+        self.created_at = datetime.now(timezone.utc)
         self.deleted = False
 
     async def insert(self) -> None:
@@ -296,7 +296,7 @@ async def test_get_user_favorites_builds_from_interactions_and_orders(monkeypatc
     }
     newer = _FakeInteractionDoc(user_id="u1", ext_id="m2", type="like")
     older = _FakeInteractionDoc(user_id="u1", ext_id="m1", type="like")
-    older.created_at = datetime.utcnow() - timedelta(days=1)
+    older.created_at = datetime.now(timezone.utc) - timedelta(days=1)
     duplicate = _FakeInteractionDoc(user_id="u1", ext_id="m2", type="like")
     _FakeInteraction._rows = [older, newer, duplicate]
     _FakePlaylist._db = {}

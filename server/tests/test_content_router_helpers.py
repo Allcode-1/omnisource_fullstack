@@ -33,17 +33,21 @@ class _FakeAsyncClient:
 @pytest.mark.asyncio
 async def test_read_cached_image_removes_expired_entries() -> None:
     content_router._image_cache.clear()
+    content_router._image_cache_total_bytes = 0
     url = "https://image.tmdb.org/t/p/w500/old.jpg"
-    content_router._image_cache[url] = (time.time() - 10, b"x", "image/jpeg")
+    content_router._image_cache[url] = (time.time() - 10, b"x", "image/jpeg", 1)
+    content_router._image_cache_total_bytes = 1
 
     result = await content_router._read_cached_image(url)
     assert result is None
     assert url not in content_router._image_cache
+    assert content_router._image_cache_total_bytes == 0
 
 
 @pytest.mark.asyncio
 async def test_write_cached_image_eviction_when_cache_is_full(monkeypatch) -> None:
     content_router._image_cache.clear()
+    content_router._image_cache_total_bytes = 0
     monkeypatch.setattr(content_router, "_IMAGE_CACHE_MAX_ITEMS", 1)
 
     await content_router._write_cached_image("url-1", b"a", "image/jpeg")

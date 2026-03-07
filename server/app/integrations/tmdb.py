@@ -58,7 +58,8 @@ class TMDBClient:
         return {"results": []}
 
     async def search_movies(self, query: str) -> Dict[str, Any]:
-        if not query: return {"results": []}
+        if not query:
+            return {"results": []}
         return await self._make_request("search/movie", {"query": query, "page": 1})
 
     async def get_popular_movies(self) -> Dict[str, Any]:

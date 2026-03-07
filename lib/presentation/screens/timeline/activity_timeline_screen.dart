@@ -132,7 +132,9 @@ class _ActivityTimelineScreenState extends State<ActivityTimelineScreen> {
                     vertical: 4,
                   ),
                   leading: CircleAvatar(
-                    backgroundColor: _colorForType(event.type).withOpacity(0.2),
+                    backgroundColor: _colorForType(
+                      event.type,
+                    ).withValues(alpha: 0.2),
                     child: Icon(
                       _iconForType(event.type),
                       color: _colorForType(event.type),

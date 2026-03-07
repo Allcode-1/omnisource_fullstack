@@ -46,7 +46,10 @@ class LibraryCubit extends Cubit<LibraryState> {
     );
   }
 
-  Future<void> loadLibraryData({bool force = false, bool showLoader = true}) async {
+  Future<void> loadLibraryData({
+    bool force = false,
+    bool showLoader = true,
+  }) async {
     final now = DateTime.now();
     if (!force &&
         state is LibraryLoaded &&
@@ -181,16 +184,16 @@ class LibraryCubit extends Cubit<LibraryState> {
 
   Future<void> removeItemsFromPlaylist(
     String playlistId,
-    List<String> externalIds,
+    List<String> contentRefs,
   ) async {
     try {
       await Future.wait(
-        externalIds.map((externalId) {
-          return playlistRepository.removeFromPlaylist(playlistId, externalId);
+        contentRefs.map((contentRef) {
+          return playlistRepository.removeFromPlaylist(playlistId, contentRef);
         }),
       );
       AppLogger.info(
-        'Removed ${externalIds.length} items from $playlistId',
+        'Removed ${contentRefs.length} items from $playlistId',
         name: 'LibraryCubit',
       );
     } catch (e, st) {

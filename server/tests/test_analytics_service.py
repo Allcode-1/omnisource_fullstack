@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -89,7 +89,7 @@ class _FakeInteractionDoc:
         self.type = type
         self.weight = weight
         self.meta = meta or {}
-        self.created_at = datetime.utcnow()
+        self.created_at = datetime.now(timezone.utc)
 
     async def insert(self) -> None:
         _FakeInteraction._rows.append(self)
@@ -238,7 +238,7 @@ async def test_get_timeline_uses_content_metadata_when_present(monkeypatch) -> N
 
 @pytest.mark.asyncio
 async def test_get_stats_computes_core_metrics(monkeypatch) -> None:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     _FakeInteraction._rows = [
         _FakeInteractionDoc(
             user_id="u1",

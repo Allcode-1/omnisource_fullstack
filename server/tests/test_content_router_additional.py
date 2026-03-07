@@ -32,6 +32,7 @@ def _build_app(optional_user=None) -> FastAPI:
 def _reset_image_cache() -> None:
     content_router._image_cache.clear()
     content_router._image_inflight.clear()
+    content_router._image_cache_total_bytes = 0
 
 
 def test_search_home_discover_delegate_to_service(monkeypatch) -> None:
@@ -128,7 +129,9 @@ def test_image_proxy_rejects_invalid_or_disallowed_urls() -> None:
 def test_image_proxy_returns_cached_content_without_fetch(monkeypatch) -> None:
     _reset_image_cache()
     url = "https://image.tmdb.org/t/p/w500/cached.jpg"
-    content_router._image_cache[url] = (time.time() + 120, b"pngdata", "image/png")
+    payload = b"pngdata"
+    content_router._image_cache[url] = (time.time() + 120, payload, "image/png", len(payload))
+    content_router._image_cache_total_bytes = len(payload)
 
     async def fail_fetch(*args, **kwargs):
         raise AssertionError("_fetch_image should not run on cache hit")
@@ -164,3 +167,31 @@ def test_image_proxy_fetches_and_caches_for_subsequent_calls(monkeypatch) -> Non
     assert second.content == b"jpegdata"
     assert captured["calls"] == 1
     assert url in content_router._image_cache
+
+
+def test_image_proxy_cache_respects_total_byte_budget(monkeypatch) -> None:
+    _reset_image_cache()
+    original_budget = content_router._IMAGE_CACHE_MAX_TOTAL_BYTES
+    try:
+        content_router._IMAGE_CACHE_MAX_TOTAL_BYTES = 10
+        url_a = "https://image.tmdb.org/t/p/w500/a.jpg"
+        url_b = "https://image.tmdb.org/t/p/w500/b.jpg"
+        fetched = {
+            url_a: (b"12345678", "image/jpeg"),
+            url_b: (b"abcd", "image/jpeg"),
+        }
+
+        async def fake_fetch_image(raw_url: str):
+            return fetched[raw_url]
+
+        monkeypatch.setattr(content_router, "_fetch_image", fake_fetch_image)
+        client = TestClient(_build_app())
+
+        first = client.get("/content/image-proxy", params={"url": url_a})
+        second = client.get("/content/image-proxy", params={"url": url_b})
+
+        assert first.status_code == 200
+        assert second.status_code == 200
+        assert content_router._image_cache_total_bytes <= 10
+    finally:
+        content_router._IMAGE_CACHE_MAX_TOTAL_BYTES = original_budget

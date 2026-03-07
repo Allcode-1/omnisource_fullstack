@@ -4,14 +4,30 @@ services:
       context: ./server
       dockerfile: Dockerfile
     container_name: omnisource-api
+    init: true
+    env_file:
+      - ./.env
     environment:
       PROJECT_NAME: ${PROJECT_NAME:-OmniSource}
       MONGODB_URL: ${MONGODB_URL:-mongodb://mongo:27017/omnisource_db}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_CONNECT_TIMEOUT_SECONDS: ${REDIS_CONNECT_TIMEOUT_SECONDS:-2.0}
+      REDIS_SOCKET_TIMEOUT_SECONDS: ${REDIS_SOCKET_TIMEOUT_SECONDS:-2.0}
+      REDIS_OPERATION_TIMEOUT_SECONDS: ${REDIS_OPERATION_TIMEOUT_SECONDS:-2.5}
+      SLOW_REQUEST_THRESHOLD_MS: ${SLOW_REQUEST_THRESHOLD_MS:-2000.0}
       SECRET_KEY: ${SECRET_KEY:-change_me_before_production}
       ALGORITHM: ${ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      AUTH_LOGIN_RATE_LIMIT_ATTEMPTS: ${AUTH_LOGIN_RATE_LIMIT_ATTEMPTS:-12}
+      AUTH_LOGIN_RATE_LIMIT_WINDOW_SECONDS: ${AUTH_LOGIN_RATE_LIMIT_WINDOW_SECONDS:-300}
+      AUTH_PASSWORD_RESET_RATE_LIMIT_ATTEMPTS: ${AUTH_PASSWORD_RESET_RATE_LIMIT_ATTEMPTS:-5}
+      AUTH_PASSWORD_RESET_RATE_LIMIT_WINDOW_SECONDS: ${AUTH_PASSWORD_RESET_RATE_LIMIT_WINDOW_SECONDS:-900}
+      IMAGE_PROXY_CACHE_TTL_SECONDS: ${IMAGE_PROXY_CACHE_TTL_SECONDS:-3600}
+      IMAGE_PROXY_CACHE_MAX_ITEMS: ${IMAGE_PROXY_CACHE_MAX_ITEMS:-500}
+      IMAGE_PROXY_MAX_BYTES_PER_ITEM: ${IMAGE_PROXY_MAX_BYTES_PER_ITEM:-5242880}
+      IMAGE_PROXY_CACHE_MAX_TOTAL_BYTES: ${IMAGE_PROXY_CACHE_MAX_TOTAL_BYTES:-67108864}
+      IMAGE_PROXY_MAX_REDIRECTS: ${IMAGE_PROXY_MAX_REDIRECTS:-4}
       SMTP_HOST: ${SMTP_HOST:-smtp.example.com}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-user@example.com}
@@ -23,6 +39,8 @@ services:
       GOOGLE_BOOKS_API_KEY: ${GOOGLE_BOOKS_API_KEY:-replace_me}
     ports:
       - "${API_PORT:-8000}:8000"
+    volumes:
+      - hf_cache:/home/app/.cache/huggingface
     depends_on:
       mongo:
         condition: service_healthy
@@ -34,6 +52,8 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - omnisource-net
 
   mongo:
     image: mongo:7
@@ -48,6 +68,8 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - omnisource-net
 
   redis:
     image: redis:7-alpine
@@ -63,7 +85,13 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - omnisource-net
 
 volumes:
   mongo_data:
   redis_data:
+  hf_cache:
+
+networks:
+  omnisource-net:

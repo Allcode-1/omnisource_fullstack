@@ -6,7 +6,7 @@ import re
 class UserBase(BaseModel):
     username: str
     email: EmailStr
-    interests: List[str] = []
+    interests: List[str] = Field(default_factory=list)
     is_onboarding_completed: bool = False
     ranking_variant: str = "hybrid_ml"
 
@@ -48,6 +48,18 @@ class UserUpdate(BaseModel):
         value = v.strip()
         if not value:
             raise ValueError("Username cannot be empty")
+        return value
+
+    @field_validator("ranking_variant")
+    @classmethod
+    def validate_optional_ranking_variant(cls, value: Optional[str]):
+        if value is None:
+            return value
+        allowed = {"content_only", "hybrid_ml"}
+        if value not in allowed:
+            raise ValueError(
+                f"ranking_variant must be one of: {', '.join(sorted(allowed))}",
+            )
         return value
 
 class PyObjectId(str):

@@ -6,9 +6,10 @@ class User(Document):
     username: Annotated[str, Indexed(unique=True)]
     email: Annotated[EmailStr, Indexed(unique=True)]
     hashed_password: str
-    interests: List[str] = []
+    interests: List[str] = Field(default_factory=list)
     is_onboarding_completed: bool = False
     ranking_variant: str = "hybrid_ml"
+    token_version: int = 0
 
     class Settings:
         name = "users"

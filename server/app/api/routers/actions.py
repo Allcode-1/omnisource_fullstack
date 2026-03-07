@@ -115,12 +115,16 @@ async def add_item_to_playlist(playlist_id: str, content: UnifiedContent, curren
         )
     return result
 
-@router.delete("/playlists/{playlist_id}/remove/{ext_id}")
-async def remove_item_from_playlist(playlist_id: str, ext_id: str, current_user: User = Depends(get_current_user)):
+@router.delete("/playlists/{playlist_id}/remove/{content_ref}")
+async def remove_item_from_playlist(
+    playlist_id: str,
+    content_ref: str,
+    current_user: User = Depends(get_current_user),
+):
     result = await library_service.remove_from_playlist(
         str(current_user.id),
         playlist_id,
-        ext_id,
+        content_ref,
     )
     if result.get("status") == "error":
         raise HTTPException(status_code=403, detail="Access denied")

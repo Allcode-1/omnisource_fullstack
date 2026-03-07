@@ -34,6 +34,8 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   bool _isRemoving = false;
   late List<UnifiedContent> _items;
 
+  String _contentRef(UnifiedContent item) => '${item.type}:${item.externalId}';
+
   @override
   void initState() {
     super.initState();
@@ -50,7 +52,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       final ids = selectedIds.toList();
       if (widget.isFavorites) {
         final selectedItems = _items
-            .where((item) => selectedIds.contains(item.externalId))
+            .where((item) => selectedIds.contains(_contentRef(item)))
             .toList();
         await cubit.removeFavorites(selectedItems);
       } else if (widget.playlistId != null) {
@@ -60,7 +62,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       if (!mounted) return;
       setState(() {
         _items = _items
-            .where((item) => !selectedIds.contains(item.externalId))
+            .where((item) => !selectedIds.contains(_contentRef(item)))
             .toList();
         selectedIds.clear();
         isEditMode = false;
@@ -137,7 +139,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                       child: const Text("Select All"),
                       onPressed: () => setState(
                         () => selectedIds = filteredItems
-                            .map((e) => e.externalId)
+                            .map((e) => _contentRef(e))
                             .toSet(),
                       ),
                     ),
@@ -156,7 +158,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate((context, index) {
                 final item = filteredItems[index];
-                final isSelected = selectedIds.contains(item.externalId);
+                final isSelected = selectedIds.contains(_contentRef(item));
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: _buildItemTile(theme, item, isSelected),
@@ -372,9 +374,9 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
           if (isEditMode) {
             setState(() {
               if (isSelected) {
-                selectedIds.remove(item.externalId);
+                selectedIds.remove(_contentRef(item));
               } else {
-                selectedIds.add(item.externalId);
+                selectedIds.add(_contentRef(item));
               }
             });
             return;

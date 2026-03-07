@@ -1,6 +1,7 @@
-import time
-from uuid import uuid4
 import asyncio
+import time
+from contextlib import asynccontextmanager, suppress
+from uuid import uuid4
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,9 +16,7 @@ from app.api.routers import actions, auth, content, recommendations, research, u
 
 configure_logging()
 logger = get_logger(__name__)
-
-app = FastAPI(title=settings.PROJECT_NAME)
-
+_startup_warmup_task: asyncio.Task[None] | None = None
 
 async def _warmup_vectorizer() -> None:
     try:
@@ -27,17 +26,31 @@ async def _warmup_vectorizer() -> None:
         logger.warning("Vectorizer warmup failed: %s", type(exc).__name__)
 
 
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    await startup_event()
+    try:
+        yield
+    finally:
+        await shutdown_event()
+
+
+async def startup_event() -> None:
+    global _startup_warmup_task
     logger.info("Starting %s", settings.PROJECT_NAME)
     await init_db()
     redis_ok = await redis_client.ping()
     logger.info("Redis health: %s", "up" if redis_ok else "down")
-    asyncio.create_task(_warmup_vectorizer())
+    _startup_warmup_task = asyncio.create_task(_warmup_vectorizer())
 
 
-@app.on_event("shutdown")
-async def shutdown_event():
+async def shutdown_event() -> None:
+    global _startup_warmup_task
+    if _startup_warmup_task is not None and not _startup_warmup_task.done():
+        _startup_warmup_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await _startup_warmup_task
+    _startup_warmup_task = None
     await asyncio.gather(
         content.service.close(),
         content.ml_engine.close(),
@@ -46,6 +59,9 @@ async def shutdown_event():
     )
     await redis_client.close()
     logger.info("Shutdown completed")
+
+
+app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -179,4 +195,4 @@ async def metrics():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)

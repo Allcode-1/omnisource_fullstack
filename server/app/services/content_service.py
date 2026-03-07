@@ -9,6 +9,7 @@ from app.schemas.content import UnifiedContent
 from app.core.tags import get_tag_queries
 from app.core.redis import redis_client
 from app.core.logging import get_logger
+from app.core.metrics import metrics_registry
 
 logger = get_logger(__name__)
 _T = TypeVar("_T")
@@ -24,6 +25,22 @@ class ContentService:
         self._inflight_home: dict[str, asyncio.Task[dict[str, list[UnifiedContent]]]] = {}
         self._inflight_discovery: dict[str, asyncio.Task[list[UnifiedContent]]] = {}
         self._inflight_recommendations: dict[str, asyncio.Task[list[UnifiedContent]]] = {}
+
+    def _record_error(self, stage: str, source: str, exc: Exception) -> None:
+        metrics_registry.increment_app_event(
+            "content_service_errors_total",
+            {
+                "stage": stage,
+                "source": source,
+                "error": type(exc).__name__,
+            },
+        )
+        logger.warning(
+            "Content service error stage=%s source=%s error=%s",
+            stage,
+            source,
+            type(exc).__name__,
+        )
 
     async def _run_dedup(
         self,
@@ -70,28 +87,47 @@ class ContentService:
 
             results = []
             for idx, raw in enumerate(results_raw):
-                if isinstance(raw, Exception) or not isinstance(raw, dict):
-                    continue
-
                 current_type = i_map[idx]
+                if isinstance(raw, Exception):
+                    self._record_error("search_fetch", current_type, raw)
+                    continue
+                if not isinstance(raw, dict):
+                    self._record_error(
+                        "search_payload",
+                        current_type,
+                        TypeError("Invalid payload type"),
+                    )
+                    continue
 
                 if current_type == "movie":
                     for item in raw.get("results", []):
                         try:
                             results.append(self.mapper.map_tmdb(item))
-                        except Exception:
+                        except (KeyError, TypeError, ValueError) as exc:
+                            self._record_error("search_map", "movie", exc)
+                            continue
+                        except Exception as exc:
+                            self._record_error("search_map_unexpected", "movie", exc)
                             continue
                 elif current_type == "book":
                     for item in raw.get("items", []):
                         try:
                             results.append(self.mapper.map_google_books(item))
-                        except Exception:
+                        except (KeyError, TypeError, ValueError) as exc:
+                            self._record_error("search_map", "book", exc)
+                            continue
+                        except Exception as exc:
+                            self._record_error("search_map_unexpected", "book", exc)
                             continue
                 elif current_type == "music":
                     for item in raw.get("tracks", {}).get("items", []):
                         try:
                             results.append(self.mapper.map_spotify(item))
-                        except Exception:
+                        except (KeyError, TypeError, ValueError) as exc:
+                            self._record_error("search_map", "music", exc)
+                            continue
+                        except Exception as exc:
+                            self._record_error("search_map_unexpected", "music", exc)
                             continue
 
             valid_results = [
@@ -131,7 +167,15 @@ class ContentService:
             def wrap(data, mapper_func, type_key):
                 if type != "all" and type_key != type:
                     return []
-                if isinstance(data, Exception) or not isinstance(data, dict):
+                if isinstance(data, Exception):
+                    self._record_error("home_fetch", type_key, data)
+                    return []
+                if not isinstance(data, dict):
+                    self._record_error(
+                        "home_payload",
+                        type_key,
+                        TypeError("Invalid payload type"),
+                    )
                     return []
 
                 if type_key == "movie":
@@ -152,7 +196,11 @@ class ContentService:
                             and self.sanitizer.is_valid(mapped_item)
                         ):
                             mapped.append(mapped_item)
-                    except Exception:
+                    except (KeyError, TypeError, ValueError) as exc:
+                        self._record_error("home_map", type_key, exc)
+                        continue
+                    except Exception as exc:
+                        self._record_error("home_map_unexpected", type_key, exc)
                         continue
                 return mapped[:15]
 
@@ -196,7 +244,16 @@ class ContentService:
             results_raw = await asyncio.gather(*tasks, return_exceptions=True)
             results = []
             for index, raw in enumerate(results_raw):
-                if isinstance(raw, Exception) or not isinstance(raw, dict):
+                source = "movie" if index == 0 else "book" if index == 1 else "music"
+                if isinstance(raw, Exception):
+                    self._record_error("discovery_fetch", source, raw)
+                    continue
+                if not isinstance(raw, dict):
+                    self._record_error(
+                        "discovery_payload",
+                        source,
+                        TypeError("Invalid payload type"),
+                    )
                     continue
                 try:
                     if index == 0:
@@ -210,7 +267,11 @@ class ContentService:
                         items = tracks.get("items", []) if isinstance(tracks, dict) else []
                         for item in items:
                             results.append(self.mapper.map_spotify(item))
-                except Exception:
+                except (KeyError, TypeError, ValueError) as exc:
+                    self._record_error("discovery_map", source, exc)
+                    continue
+                except Exception as exc:
+                    self._record_error("discovery_map_unexpected", source, exc)
                     continue
 
             filtered = [
@@ -235,38 +296,77 @@ class ContentService:
             return [UnifiedContent(**item) for item in cached]
 
         async def _build() -> list[UnifiedContent]:
-            results = []
-            try:
-                if type == "movie":
-                    raw = await self.tmdb.get_top_rated_movies()
-                    results = [self.mapper.map_tmdb(m) for m in (raw or {}).get("results", [])]
-                elif type == "music":
-                    raw = await self.spotify.search_tracks("tag:new")
-                    tracks = (raw or {}).get("tracks", {})
-                    track_items = tracks.get("items", []) if isinstance(tracks, dict) else []
-                    results = [self.mapper.map_spotify(track) for track in track_items]
-                elif type == "book":
-                    raw = await self.books.search_books("subject:recommended")
-                    results = [self.mapper.map_google_books(book) for book in (raw or {}).get("items", [])]
-                else:
-                    m_raw, s_raw, b_raw = await asyncio.gather(
-                        self.tmdb.get_top_rated_movies(),
-                        self.spotify.search_tracks("tag:new"),
-                        self.books.search_books("subject:fiction"),
-                        return_exceptions=True,
-                    )
-                    if not isinstance(m_raw, Exception) and m_raw:
-                        results.extend([self.mapper.map_tmdb(m) for m in m_raw.get("results", [])[:5]])
-                    if not isinstance(s_raw, Exception) and s_raw:
-                        tracks = s_raw.get("tracks", {})
-                        track_items = tracks.get("items", []) if isinstance(tracks, dict) else []
-                        results.extend([self.mapper.map_spotify(track) for track in track_items[:5]])
-                    if not isinstance(b_raw, Exception) and b_raw:
-                        results.extend([self.mapper.map_google_books(book) for book in b_raw.get("items", [])[:5]])
+            results: list[UnifiedContent] = []
 
-            except Exception as exc:
-                logger.exception("Critical service error in get_recommendations: %s", exc)
-                return []
+            def safe_map(
+                items: list[Any],
+                mapper: Callable[[Any], UnifiedContent],
+                source: str,
+            ) -> list[UnifiedContent]:
+                mapped: list[UnifiedContent] = []
+                for item in items:
+                    try:
+                        mapped.append(mapper(item))
+                    except (KeyError, TypeError, ValueError) as exc:
+                        self._record_error("recommendations_map", source, exc)
+                        continue
+                    except Exception as exc:
+                        self._record_error("recommendations_map_unexpected", source, exc)
+                        continue
+                return mapped
+
+            if type == "movie":
+                try:
+                    raw = await self.tmdb.get_top_rated_movies()
+                except Exception as exc:
+                    self._record_error("recommendations_fetch", "movie", exc)
+                    return []
+                movie_items = (raw or {}).get("results", []) if isinstance(raw, dict) else []
+                results = safe_map(movie_items, self.mapper.map_tmdb, "movie")
+            elif type == "music":
+                try:
+                    raw = await self.spotify.search_tracks("tag:new")
+                except Exception as exc:
+                    self._record_error("recommendations_fetch", "music", exc)
+                    return []
+                tracks = (raw or {}).get("tracks", {}) if isinstance(raw, dict) else {}
+                track_items = tracks.get("items", []) if isinstance(tracks, dict) else []
+                results = safe_map(track_items, self.mapper.map_spotify, "music")
+            elif type == "book":
+                try:
+                    raw = await self.books.search_books("subject:recommended")
+                except Exception as exc:
+                    self._record_error("recommendations_fetch", "book", exc)
+                    return []
+                book_items = (raw or {}).get("items", []) if isinstance(raw, dict) else []
+                results = safe_map(book_items, self.mapper.map_google_books, "book")
+            else:
+                m_raw, s_raw, b_raw = await asyncio.gather(
+                    self.tmdb.get_top_rated_movies(),
+                    self.spotify.search_tracks("tag:new"),
+                    self.books.search_books("subject:fiction"),
+                    return_exceptions=True,
+                )
+                if isinstance(m_raw, dict):
+                    results.extend(
+                        safe_map(m_raw.get("results", [])[:5], self.mapper.map_tmdb, "movie"),
+                    )
+                elif isinstance(m_raw, Exception):
+                    self._record_error("recommendations_fetch", "movie", m_raw)
+                if isinstance(s_raw, dict):
+                    tracks = s_raw.get("tracks", {})
+                    track_items = tracks.get("items", []) if isinstance(tracks, dict) else []
+                    results.extend(
+                        safe_map(track_items[:5], self.mapper.map_spotify, "music"),
+                    )
+                elif isinstance(s_raw, Exception):
+                    self._record_error("recommendations_fetch", "music", s_raw)
+                if isinstance(b_raw, dict):
+                    results.extend(
+                        safe_map(b_raw.get("items", [])[:5], self.mapper.map_google_books, "book"),
+                    )
+                elif isinstance(b_raw, Exception):
+                    self._record_error("recommendations_fetch", "book", b_raw)
 
             valid_results = [item for item in results if self.sanitizer.is_valid(item)]
             if valid_results:

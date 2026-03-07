@@ -14,6 +14,8 @@ import '../models/usage_stats_model.dart';
 
 class AnalyticsRepositoryImpl implements AnalyticsRepository {
   static const _offlineQueueKey = 'offline_queue_tasks';
+  static const _maxOfflineQueueSize = 200;
+  static const _maxReplayBatchSize = 20;
 
   final Dio _dio;
 
@@ -27,16 +29,17 @@ class AnalyticsRepositoryImpl implements AnalyticsRepository {
     double? weight,
     Map<String, dynamic>? meta,
   }) async {
-    final payload = {
+    final payload = <String, dynamic>{
       'type': type,
-      if (extId != null) 'ext_id': extId,
-      if (contentType != null) 'content_type': contentType,
-      if (weight != null) 'weight': weight,
+      'ext_id': extId,
+      'content_type': contentType,
+      'weight': weight,
       'meta': meta ?? <String, dynamic>{},
-    };
+    }..removeWhere((_, value) => value == null);
 
     try {
       await _dio.post('/actions/event', data: payload);
+      await _replayOfflineQueue();
     } catch (e, st) {
       AppLogger.warning('Failed to track event $type. Added to offline queue');
       await enqueueOfflineTask(jsonEncode(payload));
@@ -172,7 +175,10 @@ class AnalyticsRepositoryImpl implements AnalyticsRepository {
     final prefs = await SharedPreferences.getInstance();
     final list = prefs.getStringList(_offlineQueueKey) ?? <String>[];
     list.insert(0, task);
-    await prefs.setStringList(_offlineQueueKey, list.take(200).toList());
+    await prefs.setStringList(
+      _offlineQueueKey,
+      list.take(_maxOfflineQueueSize).toList(),
+    );
   }
 
   @override
@@ -185,5 +191,57 @@ class AnalyticsRepositoryImpl implements AnalyticsRepository {
   Future<void> clearOfflineQueue() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_offlineQueueKey);
+  }
+
+  Future<void> _setOfflineQueue(List<String> queue) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _offlineQueueKey,
+      queue.take(_maxOfflineQueueSize).toList(),
+    );
+  }
+
+  Future<void> _replayOfflineQueue() async {
+    final queueNewestFirst = await getOfflineQueue();
+    if (queueNewestFirst.isEmpty) return;
+
+    final queueOldestFirst = queueNewestFirst.reversed.toList();
+    final pendingOldestFirst = <String>[];
+    var replayed = 0;
+    var failed = false;
+
+    for (var i = 0; i < queueOldestFirst.length; i++) {
+      final task = queueOldestFirst[i];
+      if (replayed >= _maxReplayBatchSize) {
+        pendingOldestFirst.add(task);
+        continue;
+      }
+      Map<String, dynamic> payload;
+      try {
+        final decoded = jsonDecode(task);
+        if (decoded is! Map) {
+          continue;
+        }
+        payload = Map<String, dynamic>.from(decoded);
+      } catch (_) {
+        continue;
+      }
+
+      try {
+        await _dio.post('/actions/event', data: payload);
+        replayed++;
+      } catch (_) {
+        pendingOldestFirst.addAll(queueOldestFirst.sublist(i));
+        failed = true;
+        break;
+      }
+    }
+
+    if (!failed && pendingOldestFirst.isEmpty) {
+      await clearOfflineQueue();
+      return;
+    }
+
+    await _setOfflineQueue(pendingOldestFirst.reversed.toList());
   }
 }

@@ -117,7 +117,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     vertical: 4,
                   ),
                   leading: CircleAvatar(
-                    backgroundColor: color.withOpacity(0.2),
+                    backgroundColor: color.withValues(alpha: 0.2),
                     child: Icon(
                       CupertinoIcons.bell_fill,
                       color: color,

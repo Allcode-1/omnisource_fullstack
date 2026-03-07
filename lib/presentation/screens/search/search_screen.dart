@@ -63,7 +63,9 @@ class _SearchScreenState extends State<SearchScreen> {
         builder: (context, state) {
           final libraryState = context.watch<LibraryCubit>().state;
           final likedIds = libraryState is LibraryLoaded
-              ? libraryState.favorites.map((item) => item.externalId).toSet()
+              ? libraryState.favorites
+                    .map((item) => '${item.type}:${item.externalId}')
+                    .toSet()
               : <String>{};
           final filtered = _applyAdvancedFilters(
             state.results,
@@ -488,7 +490,10 @@ class _SearchScreenState extends State<SearchScreen> {
   ) {
     return source.where((item) {
       if (item.rating < state.minRating) return false;
-      if (state.onlyLiked && !likedIds.contains(item.externalId)) return false;
+      if (state.onlyLiked &&
+          !likedIds.contains('${item.type}:${item.externalId}')) {
+        return false;
+      }
 
       final release = item.releaseDate;
       int? year;

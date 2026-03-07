@@ -36,10 +36,10 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
     try {
       final response = await _dio.post(
         ApiConstants.playlists,
-        queryParameters: {
+        queryParameters: <String, dynamic>{
           'title': title,
-          if (description != null) 'description': description,
-        },
+          'description': description,
+        }..removeWhere((_, value) => value == null),
       );
       return PlaylistModel.fromJson(response.data);
     } catch (e, st) {
@@ -62,10 +62,10 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
     try {
       final response = await _dio.patch(
         '${ApiConstants.playlists}/$id',
-        data: {
-          if (title != null) 'title': title,
-          if (description != null) 'description': description,
-        },
+        data: <String, dynamic>{
+          'title': title,
+          'description': description,
+        }..removeWhere((_, value) => value == null),
       );
       return PlaylistModel.fromJson(response.data);
     } catch (e, st) {
@@ -113,10 +113,11 @@ class PlaylistRepositoryImpl implements PlaylistRepository {
   }
 
   @override
-  Future<void> removeFromPlaylist(String playlistId, String externalId) async {
+  Future<void> removeFromPlaylist(String playlistId, String contentRef) async {
     try {
+      final encodedRef = Uri.encodeComponent(contentRef);
       await _dio.delete(
-        '${ApiConstants.playlists}/$playlistId/remove/$externalId',
+        '${ApiConstants.playlists}/$playlistId/remove/$encodedRef',
       );
     } catch (e, st) {
       AppLogger.error(

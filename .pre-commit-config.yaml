@@ -1,0 +1,45 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.10
+    hooks:
+      - id: ruff
+        files: ^server/
+      - id: ruff-format
+        files: ^server/
+
+  - repo: local
+    hooks:
+      - id: backend-tests
+        name: Backend tests
+        entry: python -m pytest -q server/tests
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: backend-bandit
+        name: Backend bandit
+        entry: python -m bandit -q -r server/app -ll
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: backend-pip-audit
+        name: Backend pip-audit
+        entry: python -m pip_audit -r server/requirements.txt --ignore-vuln CVE-2024-23342
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: flutter-analyze
+        name: Flutter analyze
+        entry: flutter analyze
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: flutter-test
+        name: Flutter tests
+        entry: flutter test
+        language: system
+        pass_filenames: false
+        stages: [pre-push]

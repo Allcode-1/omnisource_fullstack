@@ -3,6 +3,7 @@ from collections import Counter
 from typing import Optional, List
 from app.models.interaction import Interaction
 from app.models.content_meta import ContentMetadata
+from app.core.content_keys import make_content_key, split_content_key
 from app.ml.similarity import SimilarityManager
 from app.ml.vectorizer import get_vectorizer
 from app.schemas.content import UnifiedContent
@@ -76,33 +77,71 @@ class RecommenderEngine:
             )
             return fallback
 
-        interaction_weight_by_id: dict[str, float] = {}
-        liked_ids = set()
+        interaction_weight_by_ref: dict[str, float] = {}
         for interaction in interactions:
             if not interaction.ext_id or interaction.ext_id == "app":
                 continue
+            content_ref = (
+                getattr(interaction, "content_key", None)
+                or make_content_key(getattr(interaction, "content_type", None), interaction.ext_id)
+                or interaction.ext_id
+            )
+            if not content_ref:
+                continue
             base_weight = self.EVENT_WEIGHTS.get(interaction.type, 0.1)
             final_weight = float(interaction.weight or base_weight)
-            interaction_weight_by_id[interaction.ext_id] = (
-                interaction_weight_by_id.get(interaction.ext_id, 0.0) + final_weight
+            interaction_weight_by_ref[content_ref] = (
+                interaction_weight_by_ref.get(content_ref, 0.0) + final_weight
             )
-            if interaction.type == "like":
-                liked_ids.add(interaction.ext_id)
 
-        if not interaction_weight_by_id:
+        if not interaction_weight_by_ref:
             logger.info("No vectorizable interactions for user=%s", user_id)
             return []
 
-        interaction_docs = await ContentMetadata.find(
-            In(ContentMetadata.ext_id, list(interaction_weight_by_id.keys()))
-        ).to_list()
+        supports_content_key = hasattr(ContentMetadata, "content_key")
+        interaction_refs = list(interaction_weight_by_ref.keys())
+        if supports_content_key:
+            interaction_or_filters: list[dict] = []
+            keyed_refs = [ref for ref in interaction_refs if ":" in ref]
+            legacy_refs = [ref for ref in interaction_refs if ":" not in ref]
+            if keyed_refs:
+                interaction_or_filters.append({"content_key": {"$in": keyed_refs}})
+            if legacy_refs:
+                interaction_or_filters.append({"ext_id": {"$in": legacy_refs}})
+            for ref in interaction_refs:
+                ref_type, ref_ext_id = split_content_key(ref)
+                if ref_type and ref_ext_id:
+                    interaction_or_filters.append({"type": ref_type, "ext_id": ref_ext_id})
+            if not interaction_or_filters:
+                logger.info("No metadata refs to build profile for user=%s", user_id)
+                return []
+            interaction_docs = await ContentMetadata.find({"$or": interaction_or_filters}).to_list()
+        else:
+            ref_ext_ids: list[str] = []
+            for ref in interaction_refs:
+                ref_type, ref_ext_id = split_content_key(ref)
+                ref_ext_ids.append(ref_ext_id if ref_type and ref_ext_id else ref)
+            if not ref_ext_ids:
+                logger.info("No metadata refs to build profile for user=%s", user_id)
+                return []
+            interaction_docs = await ContentMetadata.find(
+                In(ContentMetadata.ext_id, list(dict.fromkeys(ref_ext_ids))),
+            ).to_list()
 
         weighted_vectors = []
         vector_dims: Counter[int] = Counter()
         for doc in interaction_docs:
             if not doc.features_vector:
                 continue
-            weight = interaction_weight_by_id.get(doc.ext_id, 0.0)
+            doc_ref = (
+                getattr(doc, "content_key", None)
+                or make_content_key(doc.type, doc.ext_id)
+                or doc.ext_id
+            )
+            weight = interaction_weight_by_ref.get(
+                doc_ref,
+                interaction_weight_by_ref.get(doc.ext_id, 0.0),
+            )
             if weight <= 0:
                 continue
             vector_dims[len(doc.features_vector)] += 1
@@ -133,17 +172,30 @@ class RecommenderEngine:
 
         # Exclude already seen content and skip docs without vectors.
         candidates_filter: dict[str, object] = {
-            "ext_id": {"$nin": list(interaction_weight_by_id.keys())},
             "features_vector.0": {"$exists": True},
         }
+        if not supports_content_key:
+            excluded_ext_ids = [
+                split_content_key(ref)[1] if split_content_key(ref)[1] else ref
+                for ref in interaction_weight_by_ref.keys()
+            ]
+            candidates_filter["ext_id"] = {"$nin": excluded_ext_ids}
         if content_type and content_type != "all":
             candidates_filter["type"] = content_type
         candidates = await ContentMetadata.find(candidates_filter).to_list()
 
+        seen_refs = set(interaction_weight_by_ref.keys())
         scored_results = []
         skipped_candidates_mismatch = 0
         for item in candidates:
             if not item.features_vector:
+                continue
+            item_ref = (
+                getattr(item, "content_key", None)
+                or make_content_key(item.type, item.ext_id)
+                or item.ext_id
+            )
+            if item_ref in seen_refs or item.ext_id in seen_refs:
                 continue
             if len(item.features_vector) != target_dim:
                 skipped_candidates_mismatch += 1

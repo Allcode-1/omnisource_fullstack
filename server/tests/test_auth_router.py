@@ -24,9 +24,9 @@ class _FakeDeleteQuery:
 
 
 class _FakeResetEntry:
-    def __init__(self, *, email: str, token: str, expires_at: datetime) -> None:
+    def __init__(self, *, email: str, token_hash: str, expires_at: datetime) -> None:
         self.email = email
-        self.token = token
+        self.token_hash = token_hash
         self.expires_at = expires_at
         self.deleted = False
 
@@ -53,6 +53,7 @@ class _FakeUser:
 
 
 def _build_app() -> FastAPI:
+    auth_router._RATE_LIMIT_BUCKETS.clear()
     app = FastAPI()
     app.include_router(auth_router.router)
     return app
@@ -61,7 +62,12 @@ def _build_app() -> FastAPI:
 def _patch_query_fields(monkeypatch) -> None:
     monkeypatch.setattr(auth_router.User, "email", _FakeField("email"), raising=False)
     monkeypatch.setattr(auth_router.PasswordReset, "email", _FakeField("email"), raising=False)
-    monkeypatch.setattr(auth_router.PasswordReset, "token", _FakeField("token"), raising=False)
+    monkeypatch.setattr(
+        auth_router.PasswordReset,
+        "token_hash",
+        _FakeField("token_hash"),
+        raising=False,
+    )
 
 
 def test_login_returns_400_on_invalid_credentials(monkeypatch) -> None:
@@ -220,10 +226,11 @@ def test_forgot_password_existing_user_creates_reset_entry(monkeypatch) -> None:
 
     class _FakePasswordResetDoc:
         email = _FakeField("email")
+        token_hash = _FakeField("token_hash")
 
-        def __init__(self, *, email: str, token: str, expires_at: datetime) -> None:
+        def __init__(self, *, email: str, token_hash: str, expires_at: datetime) -> None:
             self.email = email
-            self.token = token
+            self.token_hash = token_hash
             self.expires_at = expires_at
 
         @classmethod
@@ -247,7 +254,8 @@ def test_forgot_password_existing_user_creates_reset_entry(monkeypatch) -> None:
     assert len(inserted_entries) == 1
     assert inserted_entries[0].email == "neo@test.dev"
     assert sent["email"] == "neo@test.dev"
-    assert sent["token"] == inserted_entries[0].token
+    assert sent["token"] != inserted_entries[0].token_hash
+    assert inserted_entries[0].token_hash == auth_router._hash_reset_token(sent["token"])
 
 
 def test_reset_password_returns_400_for_invalid_token(monkeypatch) -> None:
@@ -271,7 +279,7 @@ def test_reset_password_returns_400_for_expired_token(monkeypatch) -> None:
     _patch_query_fields(monkeypatch)
     expired_entry = _FakeResetEntry(
         email="neo@test.dev",
-        token="expired",
+        token_hash=auth_router._hash_reset_token("expired"),
         expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
     )
 
@@ -293,7 +301,7 @@ def test_reset_password_returns_404_when_user_missing(monkeypatch) -> None:
     _patch_query_fields(monkeypatch)
     active_entry = _FakeResetEntry(
         email="neo@test.dev",
-        token="active",
+        token_hash=auth_router._hash_reset_token("active"),
         expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
     )
 
@@ -319,7 +327,7 @@ def test_reset_password_updates_user_and_deletes_reset_token(monkeypatch) -> Non
     _patch_query_fields(monkeypatch)
     active_entry = _FakeResetEntry(
         email="neo@test.dev",
-        token="active",
+        token_hash=auth_router._hash_reset_token("active"),
         expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
     )
     user = _FakeUser(email="neo@test.dev", hashed_password="old-hash")
@@ -350,13 +358,13 @@ def test_reset_password_accepts_deep_link_token(monkeypatch) -> None:
     _patch_query_fields(monkeypatch)
     active_entry = _FakeResetEntry(
         email="neo@test.dev",
-        token="active-token",
+        token_hash=auth_router._hash_reset_token("active-token"),
         expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
     )
     user = _FakeUser(email="neo@test.dev", hashed_password="old-hash")
 
     async def fake_reset_find_one(condition, *args, **kwargs):
-        assert condition == ("token", "active-token")
+        assert condition == ("token_hash", auth_router._hash_reset_token("active-token"))
         return active_entry
 
     async def fake_user_find_one(*args, **kwargs):
@@ -384,7 +392,7 @@ def test_reset_password_accepts_naive_expiration_datetime(monkeypatch) -> None:
     # naive datetime branch should be interpreted as UTC and still work
     active_entry = _FakeResetEntry(
         email="neo@test.dev",
-        token="naive",
+        token_hash=auth_router._hash_reset_token("naive"),
         expires_at=datetime.now() + timedelta(minutes=5),
     )
     user = _FakeUser(email="neo@test.dev", hashed_password="old-hash")
@@ -406,3 +414,38 @@ def test_reset_password_accepts_naive_expiration_datetime(monkeypatch) -> None:
     )
     assert response.status_code == 200
     assert user.saved is True
+
+
+def test_login_returns_429_when_rate_limited(monkeypatch) -> None:
+    _patch_query_fields(monkeypatch)
+
+    async def fake_find_one(*args, **kwargs):
+        return None
+
+    async def always_limited(*args, **kwargs):
+        return False
+
+    monkeypatch.setattr(auth_router.User, "find_one", fake_find_one)
+    monkeypatch.setattr(auth_router, "_consume_rate_limit", always_limited)
+    client = TestClient(_build_app())
+
+    response = client.post(
+        "/auth/login",
+        data={"username": "neo@test.dev", "password": "StrongPass1!"},
+    )
+    assert response.status_code == 429
+    assert "Too many login attempts" in response.json()["detail"]
+
+
+def test_forgot_password_returns_429_when_rate_limited(monkeypatch) -> None:
+    _patch_query_fields(monkeypatch)
+
+    async def always_limited(*args, **kwargs):
+        return False
+
+    monkeypatch.setattr(auth_router, "_consume_rate_limit", always_limited)
+    client = TestClient(_build_app())
+
+    response = client.post("/auth/forgot-password", json={"email": "neo@test.dev"})
+    assert response.status_code == 429
+    assert "Too many password reset attempts" in response.json()["detail"]

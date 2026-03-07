@@ -8,6 +8,16 @@ class Settings(BaseSettings):
     REDIS_SOCKET_TIMEOUT_SECONDS: float = 2.0
     REDIS_OPERATION_TIMEOUT_SECONDS: float = 2.5
     SLOW_REQUEST_THRESHOLD_MS: float = 2000.0
+    AUTH_LOGIN_RATE_LIMIT_ATTEMPTS: int = 12
+    AUTH_LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = 300
+    AUTH_PASSWORD_RESET_RATE_LIMIT_ATTEMPTS: int = 5
+    AUTH_PASSWORD_RESET_RATE_LIMIT_WINDOW_SECONDS: int = 900
+
+    IMAGE_PROXY_CACHE_TTL_SECONDS: int = 3600
+    IMAGE_PROXY_CACHE_MAX_ITEMS: int = 500
+    IMAGE_PROXY_MAX_BYTES_PER_ITEM: int = 5 * 1024 * 1024
+    IMAGE_PROXY_CACHE_MAX_TOTAL_BYTES: int = 64 * 1024 * 1024
+    IMAGE_PROXY_MAX_REDIRECTS: int = 4
     SECRET_KEY: str
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
@@ -29,8 +39,14 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str
     EMAILS_FROM_EMAIL: str
 
-    STOP_WORDS_TITLES: list = ["white noise", "baby sleep", "relaxing sounds", "taras bulba", "rapeman"]
-    STOP_WORDS_SUBTITLES: list = ["dream supplier"]
+    STOP_WORDS_TITLES: list[str] = [
+        "white noise",
+        "baby sleep",
+        "relaxing sounds",
+        "taras bulba",
+        "rapeman",
+    ]
+    STOP_WORDS_SUBTITLES: list[str] = ["dream supplier"]
     
     TMDB_API_KEY: str
     SPOTIFY_CLIENT_ID: str

@@ -1,8 +1,11 @@
 import asyncio
-from typing import List
 
-from beanie.operators import In
 from pymongo.errors import DuplicateKeyError
+from app.core.content_keys import (
+    looks_like_content_key,
+    make_content_key,
+    split_content_key,
+)
 from app.core.redis import redis_client
 from app.models.content_meta import ContentMetadata, Playlist
 from app.models.interaction import Interaction
@@ -37,6 +40,110 @@ class LibraryService:
             release_date=doc.release_date,
         )
 
+    @staticmethod
+    def _doc_ref(doc: ContentMetadata) -> str:
+        return (
+            getattr(doc, "content_key", None)
+            or make_content_key(doc.type, doc.ext_id)
+            or doc.ext_id
+        )
+
+    @staticmethod
+    def _supports_metadata_content_key() -> bool:
+        return hasattr(ContentMetadata, "content_key")
+
+    @staticmethod
+    def _supports_interaction_content_key() -> bool:
+        return hasattr(Interaction, "content_key")
+
+    @staticmethod
+    def _supports_interaction_content_type() -> bool:
+        return hasattr(Interaction, "content_type")
+
+    async def _resolve_metadata_ref(self, ref: str) -> ContentMetadata | None:
+        normalized = (ref or "").strip()
+        if not normalized:
+            return None
+
+        supports_content_key = self._supports_metadata_content_key()
+        if looks_like_content_key(normalized):
+            ref_type, ref_ext_id = split_content_key(normalized)
+            if supports_content_key:
+                doc = await ContentMetadata.find_one(ContentMetadata.content_key == normalized)
+                if doc is not None:
+                    return doc
+            if ref_type and ref_ext_id:
+                return await ContentMetadata.find_one(
+                    ContentMetadata.ext_id == ref_ext_id,
+                    ContentMetadata.type == ref_type,
+                )
+            return None
+
+        return await ContentMetadata.find_one(ContentMetadata.ext_id == normalized)
+
+    async def _get_or_create_metadata(self, content: UnifiedContent) -> ContentMetadata | None:
+        ext_id = (content.external_id or "").strip()
+        if not ext_id:
+            return None
+
+        content_key = make_content_key(content.type, ext_id)
+        meta = None
+        supports_content_key = self._supports_metadata_content_key()
+        if supports_content_key and content_key:
+            meta = await ContentMetadata.find_one(ContentMetadata.content_key == content_key)
+        if meta is None:
+            meta = await ContentMetadata.find_one(
+                ContentMetadata.ext_id == ext_id,
+                ContentMetadata.type == content.type,
+            )
+            if (
+                meta is not None
+                and supports_content_key
+                and content_key
+                and getattr(meta, "content_key", None) != content_key
+            ):
+                meta.content_key = content_key
+                await meta.save()
+
+        if meta is not None:
+            return meta
+
+        vector = await asyncio.to_thread(
+            get_vectorizer().get_embedding,
+            f"{content.title} {content.description or ''}",
+        )
+        payload = {
+            "ext_id": ext_id,
+            "type": content.type,
+            "title": content.title,
+            "subtitle": content.subtitle,
+            "image_url": content.image_url,
+            "rating": content.rating or 0.0,
+            "release_date": content.release_date,
+            "genres": content.genres or [],
+            "features_vector": vector,
+        }
+        if supports_content_key and content_key:
+            payload["content_key"] = content_key
+        meta = ContentMetadata(**payload)
+        try:
+            await meta.insert()
+            return meta
+        except DuplicateKeyError:
+            logger.info(
+                "Content metadata already exists (race): type=%s ext_id=%s",
+                content.type,
+                ext_id,
+            )
+            if supports_content_key and content_key:
+                return await ContentMetadata.find_one(
+                    ContentMetadata.content_key == content_key,
+                )
+            return await ContentMetadata.find_one(
+                ContentMetadata.ext_id == ext_id,
+                ContentMetadata.type == content.type,
+            )
+
     async def _invalidate_user_library_cache(
         self,
         user_id: str,
@@ -51,53 +158,58 @@ class LibraryService:
             await redis_client.delete_by_prefix(f"playlist_details:{user_id}:")
 
     async def toggle_like(self, user_id: str, content: UnifiedContent):
-        # 1. garant, if content metadata exists in our db for ml
-        meta = await ContentMetadata.find_one(ContentMetadata.ext_id == content.external_id)
-        if not meta:
-            vector = await asyncio.to_thread(
-                get_vectorizer().get_embedding,
-                f"{content.title} {content.description or ''}",
-            )
-            meta = ContentMetadata(
-                ext_id=content.external_id,
-                type=content.type,
-                title=content.title,
-                subtitle=content.subtitle,
-                image_url=content.image_url,
-                rating=content.rating or 0.0,
-                features_vector=vector
-            )
-            try:
-                await meta.insert()
-            except DuplicateKeyError:
-                logger.info(
-                    "Content metadata already exists (race): ext_id=%s",
-                    content.external_id,
-                )
+        ext_id = (content.external_id or "").strip()
+        if not ext_id:
+            return {"status": "error", "message": "Invalid content id"}
+        content_key = make_content_key(content.type, ext_id)
 
-        # 2. check if like alr exists
-        existing_like = await Interaction.find_one(
-            Interaction.user_id == user_id,
-            Interaction.ext_id == content.external_id,
-            Interaction.type == "like"
-        )
+        # 1. guarantee metadata exists in db for ML
+        await self._get_or_create_metadata(content)
+
+        # 2. check if like already exists
+        existing_like = None
+        if self._supports_interaction_content_key() and content_key:
+            existing_like = await Interaction.find_one(
+                Interaction.user_id == user_id,
+                Interaction.type == "like",
+                Interaction.content_key == content_key,
+            )
+        if existing_like is None:
+            conditions = [
+                Interaction.user_id == user_id,
+                Interaction.ext_id == ext_id,
+                Interaction.type == "like",
+            ]
+            if self._supports_interaction_content_type():
+                conditions.append(Interaction.content_type == content.type)
+            existing_like = await Interaction.find_one(*conditions)
 
         if existing_like:
             await existing_like.delete()
             await self._invalidate_user_library_cache(user_id)
-            logger.info("Removed like user=%s ext_id=%s", user_id, content.external_id)
+            logger.info(
+                "Removed like user=%s type=%s ext_id=%s",
+                user_id,
+                content.type,
+                ext_id,
+            )
             return {"status": "removed", "message": "Removed from favorites"}
         
         # 3. create new like with weight 1.0 (important for ml)
-        new_like = Interaction(
-            user_id=user_id,
-            ext_id=content.external_id,
-            type="like",
-            weight=1.0 
-        )
+        interaction_payload = {
+            "user_id": user_id,
+            "ext_id": ext_id,
+            "type": "like",
+            "weight": 1.0,
+        }
+        if self._supports_interaction_content_key() and content_key:
+            interaction_payload["content_key"] = content_key
+        if self._supports_interaction_content_type():
+            interaction_payload["content_type"] = content.type
+        new_like = Interaction(**interaction_payload)
         await new_like.insert()
         await self._invalidate_user_library_cache(user_id)
-        logger.info("Added like user=%s ext_id=%s", user_id, content.external_id)
+        logger.info("Added like user=%s type=%s ext_id=%s", user_id, content.type, ext_id)
         return {"status": "added", "message": "Added to favorites"}
 
     async def get_user_favorites(self, user_id: str, content_type: str = None):
@@ -112,29 +224,44 @@ class LibraryService:
             Interaction.type == "like",
         ).sort("-created_at").to_list()
 
-        ordered_ids: list[str] = []
-        seen_ids: set[str] = set()
+        ordered_refs: list[str] = []
+        seen_refs: set[str] = set()
         for interaction in interactions:
-            ext_id = interaction.ext_id
-            if not ext_id or ext_id in seen_ids:
+            interaction_type = getattr(interaction, "content_type", None)
+            if (
+                content_type
+                and interaction_type
+                and interaction_type != content_type
+            ):
                 continue
-            seen_ids.add(ext_id)
-            ordered_ids.append(ext_id)
+            ref = (
+                getattr(interaction, "content_key", None)
+                or make_content_key(interaction_type, interaction.ext_id)
+                or interaction.ext_id
+            )
+            if not ref or ref in seen_refs:
+                continue
+            seen_refs.add(ref)
+            ordered_refs.append(ref)
 
-        if not ordered_ids:
+        if not ordered_refs:
             await redis_client.set_cache(cache_key, [], expire=120)
             return []  # if no likes - return empty list
 
-        # 2. In operator to get all content metadata for those ids
-        query = ContentMetadata.find(In(ContentMetadata.ext_id, ordered_ids))
-
-        if content_type:
-            query = query.find(ContentMetadata.type == content_type)
-
-        docs = await query.to_list()
-        rank = {ext_id: index for index, ext_id in enumerate(ordered_ids)}
-        docs.sort(key=lambda doc: rank.get(doc.ext_id, 10**9))
-        favorites = [self._to_unified(doc) for doc in docs]
+        # 2. resolve metadata by content refs (content_key first, ext_id fallback)
+        favorites: list[UnifiedContent] = []
+        seen_doc_refs: set[str] = set()
+        for ref in ordered_refs:
+            doc = await self._resolve_metadata_ref(ref)
+            if doc is None:
+                continue
+            if content_type and doc.type != content_type:
+                continue
+            doc_ref = self._doc_ref(doc)
+            if doc_ref in seen_doc_refs:
+                continue
+            seen_doc_refs.add(doc_ref)
+            favorites.append(self._to_unified(doc))
 
         await redis_client.set_cache(
             cache_key,
@@ -198,13 +325,18 @@ class LibraryService:
         if not playlist or playlist.user_id != user_id:
             return None
 
-        full_items = await ContentMetadata.find({"ext_id": {"$in": playlist.items}}).to_list()
-        by_id = {item.ext_id: item for item in full_items}
-        ordered_items = [
-            self._to_unified(by_id[item_id])
-            for item_id in playlist.items
-            if item_id in by_id
-        ]
+        refs = [ref.strip() for ref in playlist.items if ref and ref.strip()]
+        ordered_items: list[UnifiedContent] = []
+        seen_doc_refs: set[str] = set()
+        for item_ref in refs:
+            doc = await self._resolve_metadata_ref(item_ref)
+            if doc is None:
+                continue
+            doc_ref = self._doc_ref(doc)
+            if doc_ref in seen_doc_refs:
+                continue
+            seen_doc_refs.add(doc_ref)
+            ordered_items.append(self._to_unified(doc))
 
         payload = {
             "id": str(playlist.id),
@@ -216,50 +348,72 @@ class LibraryService:
         return payload
 
     async def add_to_playlist(self, playlist_id: str, content: UnifiedContent):
+        ext_id = (content.external_id or "").strip()
+        if not ext_id:
+            return {"status": "error", "message": "Invalid content id"}
+        content_key = make_content_key(content.type, ext_id)
+        storage_ref = content_key or ext_id
+
         # 1. make sure content metadata exists for ml
-        meta = await ContentMetadata.find_one(ContentMetadata.ext_id == content.external_id)
-        if not meta:
-            meta = ContentMetadata(
-                ext_id=content.external_id,
-                type=content.type,
-                title=content.title,
-                subtitle=content.subtitle,
-                image_url=content.image_url,
-                rating=content.rating or 0.0
-            )
-            try:
-                await meta.insert()
-            except DuplicateKeyError:
-                logger.info(
-                    "Content metadata already exists (race): ext_id=%s",
-                    content.external_id,
-                )
+        await self._get_or_create_metadata(content)
 
         # 2. find playlist and add content if not already there
         playlist = await Playlist.get(playlist_id)
         if not playlist:
             return {"status": "error", "message": "Playlist not found"}
         
-        if content.external_id not in playlist.items:
-            playlist.items.append(content.external_id)
+        if storage_ref not in playlist.items and ext_id not in playlist.items:
+            playlist.items.append(storage_ref)
             await playlist.save()
             await self._invalidate_user_library_cache(playlist.user_id, playlist_id)
-            logger.info("Added ext_id=%s to playlist=%s", content.external_id, playlist_id)
+            logger.info(
+                "Added content_ref=%s to playlist=%s",
+                storage_ref,
+                playlist_id,
+            )
             return {"status": "success", "message": f"Added to {playlist.title}"}
         
         return {"status": "exists", "message": "Already in playlist"}
 
-    async def remove_from_playlist(self, user_id: str, playlist_id: str, ext_id: str):
+    async def remove_from_playlist(self, user_id: str, playlist_id: str, content_ref: str):
         playlist = await Playlist.get(playlist_id)
         if not playlist or playlist.user_id != user_id:
             return {"status": "error", "message": "Playlist not found"}
 
-        if ext_id in playlist.items:
-            playlist.items.remove(ext_id)
+        normalized_ref = (content_ref or "").strip()
+        if not normalized_ref:
+            return {"status": "error", "message": "Invalid content id"}
+
+        removed = 0
+        if normalized_ref in playlist.items:
+            playlist.items = [item for item in playlist.items if item != normalized_ref]
+            removed += 1
+        elif looks_like_content_key(normalized_ref):
+            _, ext_id = split_content_key(normalized_ref)
+            if ext_id:
+                before = len(playlist.items)
+                playlist.items = [
+                    item
+                    for item in playlist.items
+                    if item != normalized_ref and item != ext_id
+                ]
+                removed = before - len(playlist.items)
+        else:
+            # backward compatibility: remove both raw ext_id and any typed refs ending with it.
+            suffix = f":{normalized_ref}"
+            before = len(playlist.items)
+            playlist.items = [
+                item
+                for item in playlist.items
+                if item != normalized_ref and not item.endswith(suffix)
+            ]
+            removed = before - len(playlist.items)
+
+        if removed > 0:
             await playlist.save()
             await self._invalidate_user_library_cache(user_id, playlist_id)
 
-        return {"status": "success"}
+        return {"status": "success", "removed": removed}
 
     async def delete_playlist(self, user_id: str, playlist_id: str):
         playlist = await Playlist.get(playlist_id)

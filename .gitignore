@@ -23,6 +23,8 @@ server/.coverage
 coverage/
 htmlcov/
 *.egg-info/
+server/.mypy_cache/
+server/.tox/
 
 # Flutter / Dart
 .dart_tool/
@@ -37,6 +39,14 @@ build/
 *.log
 hs_err_pid*
 replay_pid*
+*.pid
+
+# Docker
+mongo_data/
+redis_data/
+.docker/
+**/.DS_Store
+Thumbs.db
 
 # IDE
 .vscode/

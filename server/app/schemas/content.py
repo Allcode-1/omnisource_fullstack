@@ -1,20 +1,19 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
 
 class UnifiedContent(BaseModel):
-    id: str = Field(alias="_id") 
-    external_id: str = Field(alias="ext_id") 
-    type: str          # 'movie', 'book', or 'music'
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str = Field(alias="_id")
+    external_id: str = Field(alias="ext_id")
+    type: str  # 'movie', 'book', or 'music'
     title: str
     subtitle: Optional[str] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
     rating: Optional[float] = 0.0
-    genres: List[str] = []
+    genres: List[str] = Field(default_factory=list)
     release_date: Optional[str] = None
-
-    class Config:
-        populate_by_name = True
 
 
 class PlaylistUpdate(BaseModel):

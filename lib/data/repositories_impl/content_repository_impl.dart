@@ -11,12 +11,17 @@ class ContentRepositoryImpl implements ContentRepository {
   final Dio _dio;
   ContentRepositoryImpl(this._dio);
 
+  Map<String, dynamic>? _typeQueryParameters(String? type) {
+    if (type == null) return null;
+    return {'type': type};
+  }
+
   @override
   Future<Map<String, List<UnifiedContent>>> getHomeData({String? type}) async {
     try {
       final response = await _dio.get(
         ApiConstants.home,
-        queryParameters: {if (type != null) 'type': type},
+        queryParameters: _typeQueryParameters(type),
       );
 
       final Map<String, dynamic> data = Map<String, dynamic>.from(
@@ -44,7 +49,7 @@ class ContentRepositoryImpl implements ContentRepository {
     try {
       final response = await _dio.get(
         ApiConstants.recommendations,
-        queryParameters: {if (type != null) 'type': type},
+        queryParameters: _typeQueryParameters(type),
       );
       return (response.data as List)
           .map((i) => ContentModel.fromJson(i))
@@ -65,7 +70,10 @@ class ContentRepositoryImpl implements ContentRepository {
     try {
       final response = await _dio.get(
         ApiConstants.search,
-        queryParameters: {'query': query, if (type != null) 'type': type},
+        queryParameters: <String, dynamic>{
+          'query': query,
+          'type': type,
+        }..removeWhere((_, value) => value == null),
       );
       return (response.data as List)
           .map((item) => ContentModel.fromJson(item))
@@ -104,7 +112,7 @@ class ContentRepositoryImpl implements ContentRepository {
     try {
       final response = await _dio.get(
         ApiConstants.favorites,
-        queryParameters: {if (type != null) 'type': type},
+        queryParameters: _typeQueryParameters(type),
       );
 
       return (response.data as List).map((item) {
@@ -129,7 +137,7 @@ class ContentRepositoryImpl implements ContentRepository {
     try {
       final response = await _dio.get(
         ApiConstants.trending,
-        queryParameters: {if (type != null) 'type': type},
+        queryParameters: _typeQueryParameters(type),
       );
       return (response.data as List)
           .map((i) => ContentModel.fromJson(i))
@@ -174,7 +182,10 @@ class ContentRepositoryImpl implements ContentRepository {
     try {
       final response = await _dio.get(
         ApiConstants.deepResearch,
-        queryParameters: {'tag': tag, if (type != null) 'type': type},
+        queryParameters: <String, dynamic>{
+          'tag': tag,
+          'type': type,
+        }..removeWhere((_, value) => value == null),
       );
       return (response.data as List)
           .map((item) => ContentModel.fromJson(item))

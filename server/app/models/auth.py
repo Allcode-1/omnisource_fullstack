@@ -1,11 +1,13 @@
 from beanie import Document, Indexed
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
+from pydantic import Field
 from typing import Annotated
 
 class PasswordReset(Document):
     email: Annotated[str, Indexed()]
-    token: str
-    expires_at: datetime
+    token_hash: Annotated[str, Indexed(unique=True)]
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: Annotated[datetime, Indexed(expireAfterSeconds=0)]
 
     class Settings:
         name = "password_resets"

@@ -101,7 +101,7 @@ class _InterestsSelectionScreenState extends State<InterestsSelectionScreen> {
                           color: Colors.white54,
                         ),
                         filled: true,
-                        fillColor: Colors.white.withOpacity(0.05),
+                        fillColor: Colors.white.withValues(alpha: 0.05),
                         contentPadding: const EdgeInsets.symmetric(
                           vertical: 18,
                         ),
@@ -149,7 +149,7 @@ class _InterestsSelectionScreenState extends State<InterestsSelectionScreen> {
         decoration: BoxDecoration(
           color: isSelected
               ? const Color(0xFF0984E3)
-              : Colors.white.withOpacity(0.05),
+              : Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? Colors.transparent : Colors.white10,

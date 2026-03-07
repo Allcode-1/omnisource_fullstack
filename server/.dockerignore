@@ -2,8 +2,14 @@ __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+.ruff_cache/
 .coverage
 .env
 .venv/
 venv/
 tests/
+*.log
+.git/
+.gitignore
+README.md
+DEPENDENCY_POLICY.md

@@ -11,6 +11,6 @@ abstract class PlaylistRepository {
   });
   Future<void> deletePlaylist(String id);
   Future<void> addToPlaylist(String playlistId, UnifiedContent content);
-  Future<void> removeFromPlaylist(String playlistId, String externalId);
+  Future<void> removeFromPlaylist(String playlistId, String contentRef);
   Future<List<UnifiedContent>> getPlaylistContent(String playlistId);
 }
