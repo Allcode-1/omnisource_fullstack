@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/user.dart';
 import '../../../domain/repositories/user_repository.dart';
 import '../../../presentation/bloc/auth/auth_cubit.dart';
+import '../../widgets/user_avatar.dart';
 import '../auth/forgot_password_screen.dart';
 import '../settings/settings_screen.dart';
 
@@ -52,12 +53,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  String _firstLetter(String value, {String fallback = 'U'}) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return fallback;
-    return trimmed.substring(0, 1).toUpperCase();
   }
 
   @override
@@ -106,7 +101,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           IconButton(
             icon: const Icon(
-              CupertinoIcons.gear_alt_fill,
+              CupertinoIcons.slider_horizontal_3,
               color: Colors.white,
             ),
             onPressed: () {
@@ -183,18 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: Colors.white.withValues(alpha: 0.08),
-            child: Text(
-              _firstLetter(_user!.username),
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ),
+          UserAvatar(username: _user!.username, size: 60),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

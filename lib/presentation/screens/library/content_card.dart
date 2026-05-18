@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/analytics_repository.dart';
@@ -80,23 +81,13 @@ class ContentCard extends StatelessWidget {
                       ),
                       Positioned(
                         top: 8,
-                        left: 8,
-                        child: _CircleAction(
-                          icon: CupertinoIcons.ellipsis,
-                          onTap: () => ContentQuickActions.show(
-                            context,
-                            item,
-                            source: 'library',
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        top: 8,
                         right: 8,
                         child: _CircleAction(
-                          icon: isLiked
-                              ? CupertinoIcons.heart_fill
-                              : CupertinoIcons.heart,
+                          icon: PhosphorIcons.heart(
+                            isLiked
+                                ? PhosphorIconsStyle.fill
+                                : PhosphorIconsStyle.regular,
+                          ),
                           iconColor: isLiked
                               ? const Color(0xFFEF7A8B)
                               : Colors.white,
@@ -121,12 +112,6 @@ class ContentCard extends StatelessWidget {
               const SizedBox(height: 2),
               Row(
                 children: [
-                  Icon(
-                    _getIconData(item.type),
-                    size: 12,
-                    color: Colors.white.withValues(alpha: 0.58),
-                  ),
-                  const SizedBox(width: 4),
                   Text(
                     _typeLabel(item.type),
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -172,17 +157,6 @@ class ContentCard extends StatelessWidget {
         return 'Book';
       default:
         return 'Music';
-    }
-  }
-
-  IconData _getIconData(String? type) {
-    switch (type) {
-      case 'movie':
-        return Icons.movie_filter_rounded;
-      case 'book':
-        return Icons.menu_book_rounded;
-      default:
-        return Icons.music_note_rounded;
     }
   }
 

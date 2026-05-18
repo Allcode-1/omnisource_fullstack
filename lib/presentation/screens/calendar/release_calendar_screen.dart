@@ -2,9 +2,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/content_repository.dart';
 import '../../widgets/secondary_header_sliver.dart';
+import '../home/detail_screen.dart';
 
 class ReleaseCalendarScreen extends StatefulWidget {
   const ReleaseCalendarScreen({super.key});
@@ -131,6 +133,7 @@ class _ReleaseCalendarScreenState extends State<ReleaseCalendarScreen> {
     final sections = grouped.entries.toList();
 
     return Scaffold(
+      backgroundColor: AppTheme.appBackground,
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
@@ -200,56 +203,61 @@ class _ReleaseCalendarScreenState extends State<ReleaseCalendarScreen> {
                       ...section.value.map((entry) {
                         final date = entry.releaseDate;
                         final content = entry.item;
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF16213A),
-                            borderRadius: BorderRadius.circular(12),
+                        return GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => Navigator.push(
+                            context,
+                            CupertinoPageRoute(
+                              builder: (_) => DetailScreen(content: content),
+                            ),
                           ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 46,
-                                height: 46,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: Colors.black26,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  '${date.day}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 17,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppTheme.surface.withValues(alpha: 0.82),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppTheme.ink.withValues(alpha: 0.08),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                _ReleaseThumb(content: content, date: date),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        content.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        '${_typeLabel(content.type)}  -  ${content.rating.toStringAsFixed(1)}',
+                                        style: TextStyle(
+                                          color: AppTheme.ink.withValues(
+                                            alpha: 0.56,
+                                          ),
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      content.title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '${content.type.toUpperCase()} • ${content.rating.toStringAsFixed(1)}',
-                                      style: const TextStyle(
-                                        color: Colors.white60,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
+                                Icon(
+                                  CupertinoIcons.chevron_right,
+                                  size: 17,
+                                  color: AppTheme.ink.withValues(alpha: 0.36),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         );
                       }),
@@ -260,6 +268,89 @@ class _ReleaseCalendarScreenState extends State<ReleaseCalendarScreen> {
             ),
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
+      ),
+    );
+  }
+
+  String _typeLabel(String type) {
+    switch (type) {
+      case 'movie':
+        return 'Movie';
+      case 'music':
+        return 'Music';
+      case 'book':
+        return 'Book';
+      default:
+        return 'Content';
+    }
+  }
+}
+
+class _ReleaseThumb extends StatelessWidget {
+  final UnifiedContent content;
+  final DateTime date;
+
+  const _ReleaseThumb({required this.content, required this.date});
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = (content.imageUrl ?? '').trim();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: SizedBox(
+        width: 52,
+        height: 52,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (imageUrl.isNotEmpty)
+              Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, error, stackTrace) => _fallback(),
+              )
+            else
+              _fallback(),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.55),
+                  ],
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  '${date.day}',
+                  style: const TextStyle(
+                    color: AppTheme.ink,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _fallback() {
+    return Container(
+      color: AppTheme.surfaceAlt,
+      alignment: Alignment.center,
+      child: Icon(
+        CupertinoIcons.calendar,
+        color: AppTheme.ink.withValues(alpha: 0.32),
+        size: 22,
       ),
     );
   }
@@ -305,13 +396,16 @@ class _CalendarFilters extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: selected ? Colors.white : const Color(0xFF16213A),
+                      color: selected ? AppTheme.ink : AppTheme.surface,
                       borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: AppTheme.ink.withValues(alpha: 0.08),
+                      ),
                     ),
                     child: Text(
                       label,
                       style: TextStyle(
-                        color: selected ? Colors.black : Colors.white,
+                        color: selected ? AppTheme.appBackground : AppTheme.ink,
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
                       ),
@@ -326,8 +420,9 @@ class _CalendarFilters extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF16213A),
+            color: AppTheme.surface.withValues(alpha: 0.82),
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.ink.withValues(alpha: 0.08)),
           ),
           child: Row(
             children: [

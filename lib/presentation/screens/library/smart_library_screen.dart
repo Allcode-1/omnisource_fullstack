@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../domain/entities/interaction_event.dart';
 import '../../../domain/entities/usage_stats.dart';
@@ -67,6 +68,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.appBackground,
       body: BlocBuilder<LibraryCubit, LibraryState>(
         builder: (context, state) {
           if (state is LibraryLoading) {
@@ -207,10 +209,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                   child: Container(
                     padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF16213A),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                    decoration: _insightDecoration(),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -241,7 +240,10 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
                                   child: LinearProgressIndicator(
                                     minHeight: 8,
                                     value: ratio,
-                                    backgroundColor: Colors.white10,
+                                    backgroundColor: AppTheme.ink.withValues(
+                                      alpha: 0.08,
+                                    ),
+                                    color: AppTheme.primary,
                                   ),
                                 ),
                               ],
@@ -258,10 +260,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                   child: Container(
                     padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF16213A),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                    decoration: _insightDecoration(),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -274,9 +273,11 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
                         ),
                         const SizedBox(height: 10),
                         if (topGenres.isEmpty)
-                          const Text(
+                          Text(
                             'No genres yet',
-                            style: TextStyle(color: Colors.white54),
+                            style: TextStyle(
+                              color: AppTheme.ink.withValues(alpha: 0.52),
+                            ),
                           )
                         else
                           Wrap(
@@ -289,7 +290,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white10,
+                                  color: AppTheme.ink.withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(999),
                                 ),
                                 child: Text(
@@ -309,10 +310,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                   child: Container(
                     padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF16213A),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                    decoration: _insightDecoration(),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -325,9 +323,11 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
                         ),
                         const SizedBox(height: 8),
                         if (recentEvents.isEmpty)
-                          const Text(
+                          Text(
                             'No events tracked yet',
-                            style: TextStyle(color: Colors.white54),
+                            style: TextStyle(
+                              color: AppTheme.ink.withValues(alpha: 0.52),
+                            ),
                           )
                         else
                           ...recentEvents.map((event) {
@@ -338,7 +338,7 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
                                   Icon(
                                     _iconForEvent(event.type),
                                     size: 16,
-                                    color: Colors.white70,
+                                    color: AppTheme.ink.withValues(alpha: 0.7),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
@@ -352,8 +352,10 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
                                   ),
                                   Text(
                                     _timeAgo(event.createdAt),
-                                    style: const TextStyle(
-                                      color: Colors.white54,
+                                    style: TextStyle(
+                                      color: AppTheme.ink.withValues(
+                                        alpha: 0.5,
+                                      ),
                                       fontSize: 11,
                                     ),
                                   ),
@@ -461,6 +463,14 @@ class _SmartLibraryScreenState extends State<SmartLibraryScreen> {
         return CupertinoIcons.time;
     }
   }
+
+  BoxDecoration _insightDecoration() {
+    return BoxDecoration(
+      color: AppTheme.surface.withValues(alpha: 0.82),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: AppTheme.ink.withValues(alpha: 0.08)),
+    );
+  }
 }
 
 class _MetricBox extends StatelessWidget {
@@ -473,13 +483,17 @@ class _MetricBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF16213A),
+        color: AppTheme.surface.withValues(alpha: 0.82),
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.ink.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: Colors.white54)),
+          Text(
+            title,
+            style: TextStyle(color: AppTheme.ink.withValues(alpha: 0.52)),
+          ),
           const SizedBox(height: 6),
           Text(
             value,

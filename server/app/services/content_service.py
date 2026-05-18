@@ -144,7 +144,7 @@ class ContentService:
         return await self._run_dedup(cache_key, self._inflight_search, _build)
 
     async def get_home_data(self, type: str = "all") -> Dict[str, List[UnifiedContent]]:
-        cache_key = f"home_data_v2_{type}"
+        cache_key = f"home_data_v3_{type}"
         cached = await redis_client.get_cache(cache_key)
         if cached:
             return {k: [UnifiedContent(**i) for i in v] for k, v in cached.items()}
@@ -154,9 +154,9 @@ class ContentService:
                 self.tmdb.get_popular_movies(),
                 self.tmdb.get_top_rated_movies(),
                 self.tmdb.search_movies("Action"),
-                self.spotify.search_tracks("tag:new"),
-                self.spotify.search_tracks("genre:rock"),
-                self.spotify.search_tracks("genre:pop"),
+                self.spotify.search_tracks("new music"),
+                self.spotify.search_tracks("rock"),
+                self.spotify.search_tracks("pop"),
                 self.books.search_books("subject:fiction"),
                 self.books.search_books("subject:thriller"),
                 self.books.search_books("subject:history"),
@@ -290,7 +290,7 @@ class ContentService:
         return await self._run_dedup(cache_key, self._inflight_discovery, _build)
 
     async def get_recommendations(self, type: str = "all") -> List[UnifiedContent]:
-        cache_key = f"recs_v2_{type}"
+        cache_key = f"recs_v3_{type}"
         cached = await redis_client.get_cache(cache_key)
         if cached:
             return [UnifiedContent(**item) for item in cached]
@@ -325,7 +325,7 @@ class ContentService:
                 results = safe_map(movie_items, self.mapper.map_tmdb, "movie")
             elif type == "music":
                 try:
-                    raw = await self.spotify.search_tracks("tag:new")
+                    raw = await self.spotify.search_tracks("pop")
                 except Exception as exc:
                     self._record_error("recommendations_fetch", "music", exc)
                     return []
@@ -343,7 +343,7 @@ class ContentService:
             else:
                 m_raw, s_raw, b_raw = await asyncio.gather(
                     self.tmdb.get_top_rated_movies(),
-                    self.spotify.search_tracks("tag:new"),
+                    self.spotify.search_tracks("pop"),
                     self.books.search_books("subject:fiction"),
                     return_exceptions=True,
                 )

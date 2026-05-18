@@ -26,6 +26,7 @@ dependencies:
   cached_network_image: ^3.3.1
   flutter_spinkit: ^5.2.0 # loaders
   shimmer: ^3.0.0        # skeletons while loading
+  phosphor_flutter: ^2.1.0
 
 
 

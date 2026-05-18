@@ -1,17 +1,14 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:omnisource/data/models/playlist_model.dart';
 import 'package:omnisource/domain/entities/unified_content.dart';
+
 import '../../../core/theme/app_theme.dart';
 import '../../bloc/library/library_cubit.dart';
 import '../../bloc/library/library_state.dart';
-import '../../bloc/auth/auth_cubit.dart';
-import '../../bloc/auth/auth_state.dart';
-import '../../../domain/repositories/user_repository.dart';
-import '../profile/profile_screen.dart';
 import 'content_card.dart';
 import 'playlist_detail_screen.dart';
-import 'playlist_editor_screen.dart';
 import 'smart_library_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -22,273 +19,214 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
+  bool _isPlaylistEditMode = false;
+  bool _isDeletingPlaylists = false;
+  final Set<String> _selectedPlaylistIds = {};
+
   @override
   void initState() {
     super.initState();
     context.read<LibraryCubit>().loadLibraryData();
   }
 
-  Widget _buildPlaylistTile({
+  void _togglePlaylistEditor() {
+    setState(() {
+      _isPlaylistEditMode = !_isPlaylistEditMode;
+      _selectedPlaylistIds.clear();
+    });
+  }
+
+  void _togglePlaylistSelection(String playlistId) {
+    setState(() {
+      if (_selectedPlaylistIds.contains(playlistId)) {
+        _selectedPlaylistIds.remove(playlistId);
+      } else {
+        _selectedPlaylistIds.add(playlistId);
+      }
+    });
+  }
+
+  void _selectAllPlaylists(List<PlaylistModel> playlists) {
+    setState(() {
+      if (_selectedPlaylistIds.length == playlists.length) {
+        _selectedPlaylistIds.clear();
+      } else {
+        _selectedPlaylistIds
+          ..clear()
+          ..addAll(playlists.map((playlist) => playlist.id));
+      }
+    });
+  }
+
+  Future<void> _deleteSelectedPlaylists() async {
+    if (_selectedPlaylistIds.isEmpty || _isDeletingPlaylists) return;
+    final ids = _selectedPlaylistIds.toList(growable: false);
+
+    setState(() => _isDeletingPlaylists = true);
+    try {
+      for (final id in ids) {
+        await context.read<LibraryCubit>().deletePlaylist(id);
+      }
+      if (!mounted) return;
+      setState(() {
+        _selectedPlaylistIds.clear();
+        _isPlaylistEditMode = false;
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isDeletingPlaylists = false);
+      }
+    }
+  }
+
+  void _renameSelectedPlaylist(List<PlaylistModel> playlists) {
+    if (_selectedPlaylistIds.length != 1) return;
+    final playlist = playlists.firstWhere(
+      (item) => item.id == _selectedPlaylistIds.first,
+    );
+    _showPlaylistFormSheet(
+      title: 'Rename Playlist',
+      initialTitle: playlist.title,
+      initialDescription: playlist.description,
+      submitLabel: 'Save',
+      onSubmit: (title, description) async {
+        await context.read<LibraryCubit>().updatePlaylist(
+          playlist.id,
+          title: title,
+          description: description,
+        );
+        if (!mounted) return;
+        setState(() {
+          _selectedPlaylistIds.clear();
+          _isPlaylistEditMode = false;
+        });
+      },
+    );
+  }
+
+  void _showCreatePlaylistSheet() {
+    _showPlaylistFormSheet(
+      title: 'New Playlist',
+      submitLabel: 'Create',
+      onSubmit: (title, description) async {
+        await context.read<LibraryCubit>().createPlaylist(title);
+      },
+    );
+  }
+
+  Future<void> _showPlaylistFormSheet({
     required String title,
-    required IconData icon,
-    required List<UnifiedContent> items,
-    String? playlistId,
-    String? description,
-    bool isFavorites = false,
-    Color? iconColor,
-  }) {
-    final theme = Theme.of(context);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.82),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(
-              alpha: 0.95,
-            ),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(
-            icon,
-            color: iconColor ?? Colors.white.withValues(alpha: 0.82),
-            size: 19,
-          ),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-        ),
-        subtitle: Text(
-          description?.trim().isNotEmpty == true
-              ? '${items.length} items • ${description!.trim()}'
-              : "${items.length} items",
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: isFavorites
-            ? const Icon(CupertinoIcons.right_chevron, size: 18)
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      if (playlistId == null) return;
-                      _showPlaylistActions(
-                        playlistId: playlistId,
-                        currentTitle: title,
-                        currentDescription: description,
-                      );
-                    },
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Icon(CupertinoIcons.ellipsis_circle, size: 20),
-                    ),
-                  ),
-                  const Icon(CupertinoIcons.right_chevron, size: 18),
-                ],
-              ),
-        onTap: () {
-          Navigator.push(
-            context,
-            CupertinoPageRoute(
-              builder: (_) => PlaylistDetailScreen(
-                playlistId: playlistId,
-                title: title,
-                description: description,
-                initialItems: items,
-                isFavorites: isFavorites,
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  void _showCreatePlaylistDialog() {
-    final controller = TextEditingController();
-    showCupertinoDialog(
-      context: context,
-      builder: (ctx) => CupertinoAlertDialog(
-        title: const Text("New Playlist"),
-        content: Padding(
-          padding: const EdgeInsets.only(top: 10),
-          child: CupertinoTextField(
-            controller: controller,
-            placeholder: "Title",
-            autofocus: true,
-          ),
-        ),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text("Cancel"),
-            onPressed: () => Navigator.pop(ctx),
-          ),
-          CupertinoDialogAction(
-            child: const Text("Create"),
-            onPressed: () {
-              final title = controller.text.trim();
-              if (title.isNotEmpty) {
-                context.read<LibraryCubit>().createPlaylist(title);
-                Navigator.pop(ctx);
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPlaylistActions({
-    required String playlistId,
-    required String currentTitle,
-    String? currentDescription,
-  }) {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (ctx) => CupertinoActionSheet(
-        title: Text(currentTitle),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _showEditPlaylistDialog(
-                playlistId: playlistId,
-                currentTitle: currentTitle,
-                currentDescription: currentDescription,
-              );
-            },
-            child: const Text('Edit Playlist'),
-          ),
-          CupertinoActionSheetAction(
-            isDestructiveAction: true,
-            onPressed: () {
-              Navigator.pop(ctx);
-              context.read<LibraryCubit>().deletePlaylist(playlistId);
-            },
-            child: const Text('Delete Playlist'),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel'),
-        ),
-      ),
-    );
-  }
-
-  void _showEditPlaylistDialog({
-    required String playlistId,
-    required String currentTitle,
-    String? currentDescription,
-  }) {
-    final titleController = TextEditingController(text: currentTitle);
+    required String submitLabel,
+    required Future<void> Function(String title, String? description) onSubmit,
+    String initialTitle = '',
+    String? initialDescription,
+  }) async {
+    final titleController = TextEditingController(text: initialTitle);
     final descriptionController = TextEditingController(
-      text: currentDescription ?? '',
+      text: initialDescription ?? '',
     );
 
-    showCupertinoDialog(
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => CupertinoAlertDialog(
-        title: const Text("Edit Playlist"),
-        content: Padding(
-          padding: const EdgeInsets.only(top: 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CupertinoTextField(
-                controller: titleController,
-                placeholder: "Title",
-                autofocus: true,
-              ),
-              const SizedBox(height: 10),
-              CupertinoTextField(
-                controller: descriptionController,
-                placeholder: "Description (optional)",
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text("Cancel"),
-            onPressed: () => Navigator.pop(ctx),
-          ),
-          CupertinoDialogAction(
-            child: const Text("Save"),
-            onPressed: () {
-              final title = titleController.text.trim();
-              if (title.isEmpty) return;
-              context.read<LibraryCubit>().updatePlaylist(
-                playlistId,
-                title: title,
-                description: descriptionController.text.trim().isEmpty
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        var isSaving = false;
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            Future<void> submit() async {
+              final playlistTitle = titleController.text.trim();
+              if (playlistTitle.isEmpty || isSaving) return;
+
+              setSheetState(() => isSaving = true);
+              await onSubmit(
+                playlistTitle,
+                descriptionController.text.trim().isEmpty
                     ? null
                     : descriptionController.text.trim(),
               );
+              if (!ctx.mounted) return;
               Navigator.pop(ctx);
-            },
-          ),
-        ],
-      ),
-    );
-  }
+            }
 
-  void _openLibraryTools() {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (ctx) => CupertinoActionSheet(
-        title: const Text('Library Actions'),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _showCreatePlaylistDialog();
-            },
-            child: const Text('New Playlist'),
-          ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.push(
-                context,
-                CupertinoPageRoute(builder: (_) => const SmartLibraryScreen()),
-              );
-            },
-            child: const Text('Smart Library'),
-          ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.push(
-                context,
-                CupertinoPageRoute(
-                  builder: (_) => const PlaylistEditorScreen(),
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 10,
+                right: 10,
+                bottom: MediaQuery.viewInsetsOf(ctx).bottom + 10,
+              ),
+              child: SafeArea(
+                top: false,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: AppTheme.ink.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _DarkTextField(
+                        controller: titleController,
+                        placeholder: 'Title',
+                        autofocus: true,
+                      ),
+                      const SizedBox(height: 10),
+                      _DarkTextField(
+                        controller: descriptionController,
+                        placeholder: 'Description',
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _SheetButton(
+                              label: 'Cancel',
+                              onTap: () => Navigator.pop(ctx),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _SheetButton(
+                              label: submitLabel,
+                              highlighted: true,
+                              isLoading: isSaving,
+                              onTap: submit,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              );
-            },
-            child: const Text('Playlist Editor'),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel'),
-        ),
-      ),
+              ),
+            );
+          },
+        );
+      },
     );
+
+    titleController.dispose();
+    descriptionController.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.appBackground,
       body: BlocBuilder<LibraryCubit, LibraryState>(
         builder: (context, state) {
           return Stack(
@@ -296,7 +234,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
               CustomScrollView(
                 physics: const BouncingScrollPhysics(),
                 slivers: [
-                  const SliverToBoxAdapter(child: SizedBox(height: 110)),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: MediaQuery.paddingOf(context).top + 78,
+                    ),
+                  ),
                   if (state is LibraryLoading)
                     const SliverFillRemaining(
                       child: Center(
@@ -305,58 +247,44 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         ),
                       ),
                     )
-                  else if (state is LibraryLoaded)
+                  else if (state is LibraryLoaded) ...[
                     SliverPadding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       sliver: SliverList(
                         delegate: SliverChildListDelegate([
-                          _buildPlaylistTile(
-                            title: "Favorites",
-                            icon: CupertinoIcons.heart_fill,
-                            iconColor: Colors.redAccent,
-                            items: state.favorites,
-                            isFavorites: true,
-                          ),
-
-                          ...state.playlists.map(
-                            (playlist) => _buildPlaylistTile(
-                              title: playlist.title,
-                              icon: CupertinoIcons.music_note_list,
-                              playlistId: playlist.id,
-                              description: playlist.description,
-                              items:
-                                  state.playlistItemsById[playlist.id] ??
-                                  const [],
+                          _buildFavoritesTile(state.favorites),
+                          const SizedBox(height: 26),
+                          _buildPlaylistsHeader(state.playlists),
+                          const SizedBox(height: 10),
+                          if (_isPlaylistEditMode)
+                            _buildPlaylistEditBar(state.playlists),
+                          if (_isPlaylistEditMode) const SizedBox(height: 10),
+                          if (state.playlists.isEmpty)
+                            _buildEmptyPlaylists()
+                          else
+                            ...state.playlists.map(
+                              (playlist) => _buildPlaylistTile(
+                                playlist: playlist,
+                                items:
+                                    state.playlistItemsById[playlist.id] ??
+                                    const [],
+                              ),
                             ),
-                          ),
                         ]),
                       ),
-                    )
-                  else if (state is LibraryError)
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Center(
+                    ),
+                    const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(20, 30, 20, 16),
                         child: Text(
-                          state.message,
-                          style: const TextStyle(color: Color(0xFFFF7A7A)),
+                          'Recently Added',
+                          style: TextStyle(
+                            fontSize: 21,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
-
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(20, 30, 20, 16),
-                      child: Text(
-                        "Recently Added",
-                        style: TextStyle(
-                          fontSize: 21,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  if (state is LibraryLoaded)
                     SliverPadding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       sliver: SliverGrid(
@@ -374,6 +302,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         ),
                       ),
                     ),
+                  ] else if (state is LibraryError)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: Text(
+                          state.message,
+                          style: const TextStyle(color: Color(0xFFFF7A7A)),
+                        ),
+                      ),
+                    ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 110)),
                 ],
               ),
               Positioned(
@@ -390,68 +329,468 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _buildAppBar(BuildContext context) {
-    return BlocBuilder<AuthCubit, AuthState>(
-      builder: (context, authState) {
-        final username = authState is AuthAuthenticated
-            ? authState.user.username
-            : "U";
-        final safeLetter = username.trim().isNotEmpty
-            ? username.trim().substring(0, 1).toUpperCase()
-            : "U";
-        return Container(
-          padding: const EdgeInsets.fromLTRB(20, 54, 20, 10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Theme.of(context).colorScheme.surface.withValues(alpha: 0.96),
-                Colors.transparent,
-              ],
-            ),
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppTheme.appBackground.withValues(alpha: 0.98),
+            AppTheme.appBackground.withValues(alpha: 0.86),
+            AppTheme.appBackground.withValues(alpha: 0),
+          ],
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
           child: Row(
             children: [
-              Text(
-                "Library",
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
+              const Text(
+                'Library',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                  height: 1.12,
                 ),
               ),
               const Spacer(),
-              IconButton(
-                onPressed: _openLibraryTools,
-                icon: const Icon(CupertinoIcons.gear_alt_fill, size: 22),
-              ),
-              const SizedBox(width: 10),
-              GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  CupertinoPageRoute(
-                    builder: (_) => ProfileScreen(
-                      userRepository: context.read<UserRepository>(),
+              _ToolbarCluster(
+                children: [
+                  _ToolbarIcon(
+                    icon: CupertinoIcons.plus,
+                    onTap: _showCreatePlaylistSheet,
+                  ),
+                  _ToolbarIcon(
+                    icon: CupertinoIcons.chart_bar_alt_fill,
+                    onTap: () => Navigator.push(
+                      context,
+                      CupertinoPageRoute(
+                        builder: (_) => const SmartLibraryScreen(),
+                      ),
                     ),
                   ),
-                ),
-                child: CircleAvatar(
-                  radius: 18,
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
-                  child: Text(
-                    safeLetter,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  _ToolbarIcon(
+                    icon: _isPlaylistEditMode
+                        ? CupertinoIcons.check_mark
+                        : CupertinoIcons.line_horizontal_3_decrease,
+                    onTap: _togglePlaylistEditor,
                   ),
-                ),
+                ],
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFavoritesTile(List<UnifiedContent> favorites) {
+    return _LibraryRow(
+      title: 'Favorites',
+      subtitle: '${favorites.length} items',
+      icon: CupertinoIcons.heart_fill,
+      iconColor: const Color(0xFFFF5D73),
+      onTap: () => Navigator.push(
+        context,
+        CupertinoPageRoute(
+          builder: (_) => PlaylistDetailScreen(
+            title: 'Favorites',
+            initialItems: favorites,
+            isFavorites: true,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaylistsHeader(List<PlaylistModel> playlists) {
+    return Row(
+      children: [
+        const Text(
+          'Playlists',
+          style: TextStyle(fontSize: 21, fontWeight: FontWeight.w600),
+        ),
+        const Spacer(),
+        if (_isPlaylistEditMode)
+          Text(
+            '${_selectedPlaylistIds.length} selected',
+            style: TextStyle(
+              color: AppTheme.ink.withValues(alpha: 0.52),
+              fontSize: 13,
+            ),
+          )
+        else
+          Text(
+            '${playlists.length}',
+            style: TextStyle(
+              color: AppTheme.ink.withValues(alpha: 0.52),
+              fontSize: 13,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPlaylistEditBar(List<PlaylistModel> playlists) {
+    final hasSelection = _selectedPlaylistIds.isNotEmpty;
+    final canRename = _selectedPlaylistIds.length == 1;
+    final allSelected =
+        playlists.isNotEmpty && _selectedPlaylistIds.length == playlists.length;
+
+    return Row(
+      children: [
+        _InlineActionButton(
+          label: allSelected ? 'Deselect' : 'Select all',
+          onTap: playlists.isEmpty
+              ? null
+              : () => _selectAllPlaylists(playlists),
+        ),
+        const SizedBox(width: 8),
+        _InlineActionButton(
+          label: 'Rename',
+          onTap: canRename ? () => _renameSelectedPlaylist(playlists) : null,
+        ),
+        const SizedBox(width: 8),
+        _InlineActionButton(
+          label: _isDeletingPlaylists ? 'Deleting' : 'Delete',
+          destructive: true,
+          onTap: hasSelection ? _deleteSelectedPlaylists : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyPlaylists() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      child: Text(
+        'No playlists yet',
+        style: TextStyle(color: AppTheme.ink.withValues(alpha: 0.46)),
+      ),
+    );
+  }
+
+  Widget _buildPlaylistTile({
+    required PlaylistModel playlist,
+    required List<UnifiedContent> items,
+  }) {
+    final isSelected = _selectedPlaylistIds.contains(playlist.id);
+    return _LibraryRow(
+      title: playlist.title,
+      subtitle: playlist.description?.trim().isNotEmpty == true
+          ? '${items.length} items - ${playlist.description!.trim()}'
+          : '${items.length} items',
+      imageUrl: items.isNotEmpty ? items.first.imageUrl : null,
+      icon: CupertinoIcons.music_note_list,
+      selectable: _isPlaylistEditMode,
+      selected: isSelected,
+      onTap: () {
+        if (_isPlaylistEditMode) {
+          _togglePlaylistSelection(playlist.id);
+          return;
+        }
+        Navigator.push(
+          context,
+          CupertinoPageRoute(
+            builder: (_) => PlaylistDetailScreen(
+              playlistId: playlist.id,
+              title: playlist.title,
+              description: playlist.description,
+              initialItems: items,
+            ),
+          ),
         );
       },
+    );
+  }
+}
+
+class _ToolbarCluster extends StatelessWidget {
+  final List<Widget> children;
+
+  const _ToolbarCluster({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 42,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.surface.withValues(alpha: 0.86),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppTheme.ink.withValues(alpha: 0.08)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: children),
+    );
+  }
+}
+
+class _ToolbarIcon extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _ToolbarIcon({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        width: 38,
+        height: 38,
+        child: Icon(icon, size: 23, color: AppTheme.ink),
+      ),
+    );
+  }
+}
+
+class _LibraryRow extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color? iconColor;
+  final String? imageUrl;
+  final bool selectable;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _LibraryRow({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onTap,
+    this.iconColor,
+    this.imageUrl,
+    this.selectable = false,
+    this.selected = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: AppTheme.ink.withValues(alpha: 0.08)),
+          ),
+        ),
+        child: Row(
+          children: [
+            if (selectable) ...[
+              Icon(
+                selected
+                    ? CupertinoIcons.check_mark_circled_solid
+                    : CupertinoIcons.circle,
+                color: selected
+                    ? AppTheme.primary
+                    : AppTheme.ink.withValues(alpha: 0.42),
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+            ],
+            _LibraryArtwork(
+              imageUrl: imageUrl,
+              icon: icon,
+              iconColor: iconColor,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppTheme.ink.withValues(alpha: 0.52),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (!selectable)
+              Icon(
+                CupertinoIcons.chevron_right,
+                color: AppTheme.ink.withValues(alpha: 0.42),
+                size: 18,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LibraryArtwork extends StatelessWidget {
+  final String? imageUrl;
+  final IconData icon;
+  final Color? iconColor;
+
+  const _LibraryArtwork({
+    required this.imageUrl,
+    required this.icon,
+    this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final url = (imageUrl ?? '').trim();
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: SizedBox(
+        width: 58,
+        height: 58,
+        child: url.isNotEmpty
+            ? Image.network(
+                url,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => _fallback(),
+              )
+            : _fallback(),
+      ),
+    );
+  }
+
+  Widget _fallback() {
+    return Container(
+      color: AppTheme.surfaceAlt,
+      alignment: Alignment.center,
+      child: Icon(
+        icon,
+        color: iconColor ?? AppTheme.ink.withValues(alpha: 0.62),
+        size: 24,
+      ),
+    );
+  }
+}
+
+class _InlineActionButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onTap;
+  final bool destructive;
+
+  const _InlineActionButton({
+    required this.label,
+    required this.onTap,
+    this.destructive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
+        opacity: enabled ? 1 : 0.38,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.surface.withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: AppTheme.ink.withValues(alpha: 0.08)),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: destructive ? const Color(0xFFFF6B7A) : AppTheme.ink,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DarkTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String placeholder;
+  final bool autofocus;
+
+  const _DarkTextField({
+    required this.controller,
+    required this.placeholder,
+    this.autofocus = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoTextField(
+      controller: controller,
+      autofocus: autofocus,
+      cursorColor: AppTheme.primary,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      placeholder: placeholder,
+      placeholderStyle: TextStyle(color: AppTheme.ink.withValues(alpha: 0.38)),
+      style: const TextStyle(color: AppTheme.ink, fontSize: 16),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.38),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.ink.withValues(alpha: 0.08)),
+      ),
+    );
+  }
+}
+
+class _SheetButton extends StatelessWidget {
+  final String label;
+  final bool highlighted;
+  final bool isLoading;
+  final VoidCallback onTap;
+
+  const _SheetButton({
+    required this.label,
+    required this.onTap,
+    this.highlighted = false,
+    this.isLoading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: isLoading ? null : onTap,
+      child: Container(
+        height: 46,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: highlighted
+              ? AppTheme.primary
+              : AppTheme.ink.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: isLoading
+            ? const CupertinoActivityIndicator(color: Colors.white)
+            : Text(
+                label,
+                style: TextStyle(
+                  color: highlighted ? Colors.white : AppTheme.ink,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+      ),
     );
   }
 }

@@ -6,14 +6,13 @@ import 'home_state.dart';
 
 export 'home_state.dart';
 
-enum ContentCategory { music, movie, book }
+enum ContentCategory { all, movie, music, book }
 
 class HomeCubit extends Cubit<HomeState> {
   final ContentRepository repository;
   int _loadToken = 0;
 
-  HomeCubit(this.repository)
-    : super(HomeState(category: ContentCategory.music));
+  HomeCubit(this.repository) : super(HomeState(category: ContentCategory.all));
 
   void setCategory(ContentCategory category) {
     if (state.category == category) return;
@@ -23,12 +22,14 @@ class HomeCubit extends Cubit<HomeState> {
 
   String _getCategoryType() {
     switch (state.category) {
+      case ContentCategory.all:
+        return 'all';
       case ContentCategory.movie:
         return 'movie';
-      case ContentCategory.book:
-        return 'book';
       case ContentCategory.music:
         return 'music';
+      case ContentCategory.book:
+        return 'book';
     }
   }
 
@@ -54,13 +55,14 @@ class HomeCubit extends Cubit<HomeState> {
           homeDataMap['Trending Now'] ??
           homeDataMap['Trending'] ??
           trendingList;
+      final recommendations = homeDataMap['For You'] ?? recsList;
 
       emit(
         state.copyWith(
           isLoading: false,
-          trending: finalTrending,
-          recommendations: homeDataMap['For You'] ?? recsList,
-          homeMap: homeDataMap,
+          trending: _dedupeContent(finalTrending),
+          recommendations: _dedupeContent(recommendations),
+          homeMap: _dedupeHomeMap(homeDataMap),
           error: '',
         ),
       );
@@ -91,5 +93,31 @@ class HomeCubit extends Cubit<HomeState> {
         name: 'HomeCubit',
       );
     }
+  }
+
+  List<UnifiedContent> _dedupeContent(List<UnifiedContent> items) {
+    final seen = <String>{};
+    final result = <UnifiedContent>[];
+
+    for (final item in items) {
+      final key = _contentKey(item);
+      if (key.isEmpty || seen.contains(key)) continue;
+      seen.add(key);
+      result.add(item);
+    }
+
+    return result;
+  }
+
+  Map<String, List<UnifiedContent>> _dedupeHomeMap(
+    Map<String, List<UnifiedContent>> source,
+  ) {
+    return source.map((key, value) => MapEntry(key, _dedupeContent(value)));
+  }
+
+  String _contentKey(UnifiedContent item) {
+    final externalId = item.externalId.trim();
+    if (externalId.isNotEmpty) return '${item.type}:$externalId';
+    return '${item.type}:${item.id}';
   }
 }

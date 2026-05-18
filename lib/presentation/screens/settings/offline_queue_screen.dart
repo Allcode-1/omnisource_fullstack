@@ -2,7 +2,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../domain/repositories/analytics_repository.dart';
+import '../../widgets/app_screen_chrome.dart';
 
 class OfflineQueueScreen extends StatefulWidget {
   const OfflineQueueScreen({super.key});
@@ -38,46 +40,59 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Offline Queue'),
-        actions: [
-          IconButton(
-            onPressed: _clear,
-            icon: const Icon(CupertinoIcons.delete_solid),
+      backgroundColor: AppTheme.appBackground,
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          OmniHeaderSliver(
+            title: 'Offline Queue',
+            subtitle: 'Pending analytics events waiting for network',
+            trailing: OmniIconButton(
+              icon: CupertinoIcons.delete,
+              color: _items.isEmpty
+                  ? AppTheme.ink.withValues(alpha: 0.28)
+                  : const Color(0xFFFF5D73),
+              onTap: _items.isEmpty ? () {} : _clear,
+            ),
           ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _items.isEmpty
-          ? const Center(
-              child: Text(
-                'Queue is empty',
-                style: TextStyle(color: Colors.white54),
+          if (_loading)
+            const SliverFillRemaining(
+              child: Center(child: CupertinoActivityIndicator()),
+            )
+          else if (_items.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Text(
+                  'Queue is empty',
+                  style: TextStyle(color: AppTheme.ink.withValues(alpha: 0.42)),
+                ),
               ),
             )
-          : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
-              itemBuilder: (context, index) {
-                final item = _items[index];
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor.withValues(alpha: 0.86),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
+              sliver: SliverList.separated(
+                itemBuilder: (context, index) {
+                  final item = _items[index];
+                  return OmniCard(
+                    child: Text(
+                      item,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.ink.withValues(alpha: 0.68),
+                        height: 1.35,
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    item,
-                    style: const TextStyle(fontSize: 12, color: Colors.white70),
-                  ),
-                );
-              },
-              separatorBuilder: (context, index) => const SizedBox(height: 8),
-              itemCount: _items.length,
+                  );
+                },
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 10),
+                itemCount: _items.length,
+              ),
             ),
+        ],
+      ),
     );
   }
 }

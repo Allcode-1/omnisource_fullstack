@@ -105,7 +105,7 @@ async def test_get_unified_search_ignores_task_errors(monkeypatch) -> None:
 async def test_get_home_data_returns_cached(monkeypatch) -> None:
     service = ContentService()
     fake_redis = _FakeRedis()
-    fake_redis.storage["home_data_v2_all"] = {
+    fake_redis.storage["home_data_v3_all"] = {
         "Trending Now": [_make_item("m1", "movie", 7.0).model_dump(by_alias=True)],
     }
     monkeypatch.setattr(content_service_module, "redis_client", fake_redis)

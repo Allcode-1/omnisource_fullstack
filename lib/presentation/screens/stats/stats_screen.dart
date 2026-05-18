@@ -2,8 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/usage_stats.dart';
 import '../../../domain/repositories/analytics_repository.dart';
+import '../../widgets/app_screen_chrome.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -49,66 +51,35 @@ class _StatsScreenState extends State<StatsScreen> {
   Widget build(BuildContext context) {
     final stats = _stats;
     return Scaffold(
+      backgroundColor: AppTheme.appBackground,
       body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
         slivers: [
-          const SliverToBoxAdapter(child: SizedBox(height: 56)),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Stats',
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Text(
-                'CTR, save-rate and interaction health',
-                style: TextStyle(color: Colors.white54, fontSize: 14),
-              ),
-            ),
+          const OmniHeaderSliver(
+            title: 'Stats',
+            subtitle: 'CTR, save-rate and interaction health',
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
               child: Row(
                 children: [7, 30, 90].map((days) {
-                  final selected = _days == days;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
+                    child: OmniPill(
+                      label: '$days d',
+                      selected: _days == days,
                       onTap: () {
                         if (_days == days) return;
                         setState(() => _days = days);
                         _load();
                       },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? Colors.white
-                              : const Color(0xFF16213A),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          '$days d',
-                          style: TextStyle(
-                            color: selected ? Colors.black : Colors.white,
-                          ),
-                        ),
-                      ),
                     ),
                   );
                 }).toList(),
               ),
             ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 10)),
           if (_loading)
             const SliverFillRemaining(
               child: Center(child: CupertinoActivityIndicator()),
@@ -119,100 +90,68 @@ class _StatsScreenState extends State<StatsScreen> {
               child: Center(
                 child: Text(
                   _error.isEmpty ? 'No stats available' : _error,
-                  style: const TextStyle(color: Colors.redAccent),
+                  style: const TextStyle(color: Color(0xFFFF5D73)),
                 ),
               ),
             )
           else
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _MetricCard(
-                            title: 'Events',
-                            value: '${stats.totalEvents}',
-                          ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 110),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OmniMetricTile(
+                          title: 'Events',
+                          value: '${stats.totalEvents}',
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _MetricCard(
-                            title: 'CTR',
-                            value: '${(stats.ctr * 100).toStringAsFixed(1)}%',
-                          ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OmniMetricTile(
+                          title: 'CTR',
+                          value: '${(stats.ctr * 100).toStringAsFixed(1)}%',
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _MetricCard(
-                            title: 'Save Rate',
-                            value:
-                                '${(stats.saveRate * 100).toStringAsFixed(1)}%',
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _MetricCard(
-                            title: 'Avg Dwell',
-                            value:
-                                '${stats.avgDwellSeconds.toStringAsFixed(1)}s',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _BreakdownCard(
-                      title: 'Event Breakdown',
-                      items: stats.countsByType,
-                    ),
-                    const SizedBox(height: 10),
-                    _BreakdownCard(
-                      title: 'Top Content Types',
-                      items: stats.topContentTypes,
-                    ),
-                    if (stats.abMetrics.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      _AbMetricsCard(metrics: stats.abMetrics),
+                      ),
                     ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OmniMetricTile(
+                          title: 'Save Rate',
+                          value:
+                              '${(stats.saveRate * 100).toStringAsFixed(1)}%',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OmniMetricTile(
+                          title: 'Avg Dwell',
+                          value: '${stats.avgDwellSeconds.toStringAsFixed(1)}s',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _BreakdownCard(
+                    title: 'Event Breakdown',
+                    items: stats.countsByType,
+                  ),
+                  const SizedBox(height: 10),
+                  _BreakdownCard(
+                    title: 'Top Content Types',
+                    items: stats.topContentTypes,
+                  ),
+                  if (stats.abMetrics.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    _AbMetricsCard(metrics: stats.abMetrics),
                   ],
-                ),
+                ]),
               ),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  final String title;
-  final String value;
-
-  const _MetricCard({required this.title, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF16213A),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(color: Colors.white54)),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-          ),
         ],
       ),
     );
@@ -230,31 +169,46 @@ class _BreakdownCard extends StatelessWidget {
     final entries = items.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF16213A),
-        borderRadius: BorderRadius.circular(14),
-      ),
+    return OmniCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           if (entries.isEmpty)
-            const Text('No data yet', style: TextStyle(color: Colors.white54))
+            Text(
+              'No data yet',
+              style: TextStyle(color: AppTheme.ink.withValues(alpha: 0.52)),
+            )
           else
             ...entries.map((entry) {
+              final maxValue = entries.first.value == 0
+                  ? 1
+                  : entries.first.value;
+              final ratio = entry.value / maxValue;
               return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Column(
                   children: [
-                    Expanded(child: Text(entry.key)),
-                    Text('${entry.value}'),
+                    Row(
+                      children: [
+                        Expanded(child: Text(entry.key)),
+                        Text('${entry.value}'),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        value: ratio,
+                        minHeight: 4,
+                        backgroundColor: AppTheme.ink.withValues(alpha: 0.08),
+                        color: AppTheme.primary,
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -274,21 +228,15 @@ class _AbMetricsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final entries = metrics.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF16213A),
-        borderRadius: BorderRadius.circular(14),
-      ),
+    return OmniCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'A/B Ranking Metrics',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           ...entries.map((entry) {
             final value = entry.value;
             final ctr = (value['ctr'] ?? 0.0) * 100;
@@ -305,8 +253,11 @@ class _AbMetricsCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'CTR ${ctr.toStringAsFixed(1)}% • Save ${saveRate.toStringAsFixed(1)}% • $events ev',
-                    style: const TextStyle(fontSize: 12, color: Colors.white70),
+                    'CTR ${ctr.toStringAsFixed(1)}%  Save ${saveRate.toStringAsFixed(1)}%  $events ev',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.ink.withValues(alpha: 0.62),
+                    ),
                   ),
                 ],
               ),

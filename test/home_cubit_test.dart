@@ -66,9 +66,9 @@ void main() {
         expect(cubit.state.trending.first.externalId, 't2');
         expect(cubit.state.recommendations.first.externalId, 'r2');
         expect(cubit.state.homeMap.containsKey('Extra'), isTrue);
-        expect(repository.lastTrendingType, 'music');
-        expect(repository.lastRecommendationsType, 'music');
-        expect(repository.lastHomeType, 'music');
+        expect(repository.lastTrendingType, 'all');
+        expect(repository.lastRecommendationsType, 'all');
+        expect(repository.lastHomeType, 'all');
       },
     );
 
@@ -111,11 +111,11 @@ void main() {
     test('setCategory with same category does nothing', () async {
       repository.homeDataResponse = const {};
 
-      cubit.setCategory(ContentCategory.music);
+      cubit.setCategory(ContentCategory.all);
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
       expect(repository.trendingCalls, 0);
-      expect(cubit.state.category, ContentCategory.music);
+      expect(cubit.state.category, ContentCategory.all);
     });
 
     test('uses "Trending" key when "Trending Now" is absent', () async {
@@ -126,7 +126,12 @@ void main() {
         title: 'Legacy Trending',
       );
       repository.trendingResponse = [
-        makeContent(id: 'fallback', externalId: 'fallback', type: 'movie', title: 'Fallback'),
+        makeContent(
+          id: 'fallback',
+          externalId: 'fallback',
+          type: 'movie',
+          title: 'Fallback',
+        ),
       ];
       repository.recommendationsResponse = const [];
       repository.homeDataResponse = {
@@ -138,24 +143,25 @@ void main() {
       expect(cubit.state.trending.first.externalId, 'legacy');
     });
 
-    test('falls back to recommendations response when "For You" is absent', () async {
-      final fallbackRec = makeContent(
-        id: 'rec-fallback',
-        externalId: 'rec-fallback',
-        type: 'movie',
-        title: 'Fallback rec',
-      );
-      repository.trendingResponse = const [];
-      repository.recommendationsResponse = [fallbackRec];
-      repository.homeDataResponse = {
-        'Trending Now': const [],
-      };
+    test(
+      'falls back to recommendations response when "For You" is absent',
+      () async {
+        final fallbackRec = makeContent(
+          id: 'rec-fallback',
+          externalId: 'rec-fallback',
+          type: 'movie',
+          title: 'Fallback rec',
+        );
+        repository.trendingResponse = const [];
+        repository.recommendationsResponse = [fallbackRec];
+        repository.homeDataResponse = {'Trending Now': const []};
 
-      await cubit.loadContent();
+        await cubit.loadContent();
 
-      expect(cubit.state.recommendations.length, 1);
-      expect(cubit.state.recommendations.first.externalId, 'rec-fallback');
-    });
+        expect(cubit.state.recommendations.length, 1);
+        expect(cubit.state.recommendations.first.externalId, 'rec-fallback');
+      },
+    );
 
     test('loadContent stores readable error text when request fails', () async {
       repository.homeDataError = Exception('home broken');

@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
+
+import '../../core/theme/app_theme.dart';
 
 class SecondaryHeaderSliver extends StatelessWidget {
   final String title;
@@ -19,39 +20,59 @@ class SecondaryHeaderSliver extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return SliverMainAxisGroup(
       slivers: [
-        CupertinoSliverNavigationBar(
-          largeTitle: Text(
-            title,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
+        SliverToBoxAdapter(
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+              child: Row(
+                children: [
+                  if (Navigator.of(context).canPop())
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => Navigator.of(context).maybePop(),
+                      child: const SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: Icon(CupertinoIcons.back, size: 22),
+                      ),
+                    )
+                  else
+                    const SizedBox(width: 6),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.ink,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        height: 1.12,
+                      ),
+                    ),
+                  ),
+                  ?trailing,
+                ],
+              ),
             ),
           ),
-          border: null,
-          backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.9),
-          leading: Navigator.of(context).canPop()
-              ? CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: () => Navigator.of(context).maybePop(),
-                  child: const Icon(CupertinoIcons.back, size: 22),
-                )
-              : null,
-          trailing: trailing,
         ),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.64),
+                    color: AppTheme.ink.withValues(alpha: 0.58),
                     fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -62,12 +83,10 @@ class SecondaryHeaderSliver extends StatelessWidget {
                     vertical: 9,
                   ),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withValues(
-                      alpha: 0.28,
-                    ),
+                    color: AppTheme.surface.withValues(alpha: 0.82),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
+                      color: AppTheme.ink.withValues(alpha: 0.08),
                     ),
                   ),
                   child: Row(
@@ -75,7 +94,7 @@ class SecondaryHeaderSliver extends StatelessWidget {
                       Icon(
                         infoIcon,
                         size: 16,
-                        color: Colors.white.withValues(alpha: 0.82),
+                        color: AppTheme.ink.withValues(alpha: 0.82),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -84,7 +103,7 @@ class SecondaryHeaderSliver extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.82),
+                            color: AppTheme.ink.withValues(alpha: 0.82),
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),

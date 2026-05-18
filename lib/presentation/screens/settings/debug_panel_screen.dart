@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../domain/repositories/analytics_repository.dart';
+import '../../widgets/app_screen_chrome.dart';
 
 class DebugPanelScreen extends StatefulWidget {
   const DebugPanelScreen({super.key});
@@ -65,77 +67,101 @@ class _DebugPanelScreenState extends State<DebugPanelScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Debug Panel')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _TileCard(
-                  title: 'A/B Variant',
-                  subtitle: _variant,
-                  trailing: CupertinoSlidingSegmentedControl<String>(
-                    groupValue: _variant,
-                    children: const {
-                      'content_only': Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6),
-                        child: Text('Content'),
-                      ),
-                      'hybrid_ml': Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6),
-                        child: Text('Hybrid'),
-                      ),
-                    },
-                    onValueChanged: (value) {
-                      if (value != null) _setVariant(value);
-                    },
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _TileCard(title: 'Backend Health', subtitle: 'Redis: $_health'),
-                const SizedBox(height: 10),
-                _TileCard(
-                  title: 'API Base URL',
-                  subtitle: ApiConstants.baseUrl,
-                ),
-                const SizedBox(height: 18),
-                ElevatedButton.icon(
-                  onPressed: _load,
-                  icon: const Icon(CupertinoIcons.refresh),
-                  label: const Text('Refresh Diagnostics'),
-                ),
-              ],
+      backgroundColor: AppTheme.appBackground,
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          OmniHeaderSliver(
+            title: 'Debug',
+            subtitle: 'A/B mode and backend diagnostics',
+            trailing: OmniIconButton(
+              icon: CupertinoIcons.refresh,
+              onTap: _load,
             ),
+          ),
+          if (_loading)
+            const SliverFillRemaining(
+              child: Center(child: CupertinoActivityIndicator()),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  OmniCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'A/B Variant',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _variant,
+                          style: TextStyle(
+                            color: AppTheme.ink.withValues(alpha: 0.62),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        CupertinoSlidingSegmentedControl<String>(
+                          groupValue: _variant,
+                          thumbColor: AppTheme.ink.withValues(alpha: 0.18),
+                          backgroundColor: Colors.black.withValues(alpha: 0.28),
+                          children: const {
+                            'content_only': Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 12),
+                              child: Text('Content'),
+                            ),
+                            'hybrid_ml': Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 12),
+                              child: Text('Hybrid'),
+                            ),
+                          },
+                          onValueChanged: (value) {
+                            if (value != null) _setVariant(value);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _InfoCard(title: 'Backend Health', value: 'Redis: $_health'),
+                  const SizedBox(height: 10),
+                  _InfoCard(title: 'API Base URL', value: ApiConstants.baseUrl),
+                ]),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
 
-class _TileCard extends StatelessWidget {
+class _InfoCard extends StatelessWidget {
   final String title;
-  final String subtitle;
-  final Widget? trailing;
+  final String value;
 
-  const _TileCard({required this.title, required this.subtitle, this.trailing});
+  const _InfoCard({required this.title, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor.withValues(alpha: 0.86),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
+    return OmniCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
-          Text(subtitle, style: const TextStyle(color: Colors.white70)),
-          if (trailing != null) ...[const SizedBox(height: 12), trailing!],
+          Text(
+            value,
+            style: TextStyle(color: AppTheme.ink.withValues(alpha: 0.62)),
+          ),
         ],
       ),
     );

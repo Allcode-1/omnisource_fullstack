@@ -2,8 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/interaction_event.dart';
 import '../../../domain/repositories/analytics_repository.dart';
+import '../../widgets/app_screen_chrome.dart';
 
 class ActivityTimelineScreen extends StatefulWidget {
   const ActivityTimelineScreen({super.key});
@@ -63,41 +65,34 @@ class _ActivityTimelineScreenState extends State<ActivityTimelineScreen> {
   Color _colorForType(String type) {
     switch (type) {
       case 'like':
-        return Colors.redAccent;
+        return const Color(0xFFFF5D73);
       case 'playlist_add':
-        return Colors.greenAccent;
+        return const Color(0xFF4ADE80);
       case 'search':
-        return const Color(0xFF5AA9FF);
+        return AppTheme.primary;
       default:
-        return Colors.white70;
+        return AppTheme.ink.withValues(alpha: 0.68);
     }
+  }
+
+  String _timeLabel(DateTime value) {
+    final local = value.toLocal();
+    final hh = local.hour.toString().padLeft(2, '0');
+    final mm = local.minute.toString().padLeft(2, '0');
+    return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')} $hh:$mm';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.appBackground,
       body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
         slivers: [
-          const SliverToBoxAdapter(child: SizedBox(height: 56)),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Activity Timeline',
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
-              ),
-            ),
+          const OmniHeaderSliver(
+            title: 'Activity',
+            subtitle: 'Views, opens, dwell time, likes and searches',
           ),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Text(
-                'Event stream: views, opens, dwell time, likes',
-                style: TextStyle(color: Colors.white54, fontSize: 14),
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 12)),
           if (_loading)
             const SliverFillRemaining(
               child: Center(child: CupertinoActivityIndicator()),
@@ -108,50 +103,93 @@ class _ActivityTimelineScreenState extends State<ActivityTimelineScreen> {
               child: Center(
                 child: Text(
                   _error,
-                  style: const TextStyle(color: Colors.redAccent),
+                  style: const TextStyle(color: Color(0xFFFF5D73)),
                 ),
               ),
             )
           else if (_events.isEmpty)
-            const SliverFillRemaining(
+            SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
                 child: Text(
                   'No activity yet',
-                  style: TextStyle(color: Colors.white38),
+                  style: TextStyle(color: AppTheme.ink.withValues(alpha: 0.42)),
                 ),
               ),
             )
           else
-            SliverList(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final event = _events[index];
-                return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  leading: CircleAvatar(
-                    backgroundColor: _colorForType(
-                      event.type,
-                    ).withValues(alpha: 0.2),
-                    child: Icon(
-                      _iconForType(event.type),
-                      color: _colorForType(event.type),
-                      size: 19,
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
+              sliver: SliverList.separated(
+                itemBuilder: (context, index) {
+                  final event = _events[index];
+                  final color = _colorForType(event.type);
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.18),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            _iconForType(event.type),
+                            color: color,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                event.title?.trim().isNotEmpty == true
+                                    ? event.title!
+                                    : event.type,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppTheme.ink,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${event.type}  -  ${_timeLabel(event.createdAt)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: AppTheme.ink.withValues(alpha: 0.48),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          event.weight.toStringAsFixed(2),
+                          style: TextStyle(
+                            color: AppTheme.ink.withValues(alpha: 0.48),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  title: Text(event.title ?? event.type),
-                  subtitle: Text(
-                    '${event.type} • ${event.createdAt.toLocal()}',
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
-                  ),
-                  trailing: Text(
-                    event.weight.toStringAsFixed(2),
-                    style: const TextStyle(color: Colors.white54),
-                  ),
-                );
-              }, childCount: _events.length),
+                  );
+                },
+                separatorBuilder: (context, index) => Divider(
+                  height: 1,
+                  indent: 54,
+                  color: AppTheme.ink.withValues(alpha: 0.08),
+                ),
+                itemCount: _events.length,
+              ),
             ),
         ],
       ),

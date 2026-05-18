@@ -12,6 +12,7 @@ import '../../../domain/repositories/content_repository.dart';
 import '../../../domain/repositories/user_repository.dart';
 import '../../bloc/auth/auth_cubit.dart';
 import '../../bloc/auth/auth_state.dart';
+import '../../widgets/user_avatar.dart';
 import '../profile/profile_screen.dart';
 import '../search/search_grid_card.dart';
 
@@ -108,7 +109,11 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
   }
 
   Future<void> _runDeepResearch() async {
-    if (_selectedTags.isEmpty) {
+    final seedTags = _selectedTags.isNotEmpty
+        ? _selectedTags.toList(growable: false)
+        : _seedTagsForType(_activeType);
+
+    if (seedTags.isEmpty) {
       _researchRequestToken++;
       setState(() {
         _results = const [];
@@ -119,7 +124,6 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
     }
 
     final requestToken = ++_researchRequestToken;
-    final selectedTags = _selectedTags.toList(growable: false);
     final selectedType = _activeType;
 
     setState(() {
@@ -132,7 +136,7 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
       final type = selectedType == 'all' ? null : selectedType;
 
       final responses = await Future.wait(
-        selectedTags.map((tag) async {
+        seedTags.map((tag) async {
           try {
             return await repository.getDeepResearch(tag, type: type);
           } catch (e, st) {
@@ -223,12 +227,14 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
             controller: _scrollController,
             physics: const BouncingScrollPhysics(),
             slivers: [
-              const SliverToBoxAdapter(child: SizedBox(height: 120)),
+              SliverToBoxAdapter(
+                child: SizedBox(height: MediaQuery.paddingOf(context).top + 76),
+              ),
               const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(20, 2, 20, 0),
                   child: Text(
-                    'Pick one or more tags and explore a focused feed',
+                    'Choose a tag or content type to build a focused feed',
                     style: TextStyle(color: Colors.white54, fontSize: 14),
                   ),
                 ),
@@ -254,11 +260,12 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
                   child: _buildSelectedTags(),
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 14)),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: _buildTagCloud(),
+                  child: _selectedTags.isEmpty
+                      ? _buildTagStarter()
+                      : _buildCompactTagSuggestions(),
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 18)),
@@ -276,13 +283,17 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
                     ),
                   ),
                 )
-              else if (_selectedTags.isEmpty)
-                const SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(
+              else if (_selectedTags.isEmpty && _activeType == 'all')
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
                     child: Text(
-                      'Select tags to start discovering',
-                      style: TextStyle(color: Colors.white38),
+                      'Choose a tag or content type above to build a focused feed.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppTheme.ink.withValues(alpha: 0.42),
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 )
@@ -291,7 +302,9 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
                   hasScrollBody: false,
                   child: Center(
                     child: Text(
-                      'No results for selected tags',
+                      _selectedTags.isEmpty
+                          ? 'No results for selected category'
+                          : 'No results for selected tags',
                       style: const TextStyle(color: Colors.white38),
                     ),
                   ),
@@ -300,12 +313,13 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 14,
-                      mainAxisSpacing: 18,
-                      childAspectRatio: 0.63,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 14,
+                          mainAxisSpacing: 18,
+                          childAspectRatio: 0.63,
+                        ),
                     delegate: SliverChildBuilderDelegate(
                       (context, index) => SearchGridCard(item: _results[index]),
                       childCount: _results.length,
@@ -335,12 +349,8 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
         final username = authState is AuthAuthenticated
             ? authState.user.username
             : "U";
-        final safeLetter = username.trim().isNotEmpty
-            ? username.trim().substring(0, 1).toUpperCase()
-            : "U";
 
         return Container(
-          padding: const EdgeInsets.fromLTRB(20, 54, 20, 10),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
@@ -351,42 +361,38 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
               ],
             ),
           ),
-          child: Row(
-            children: [
-              Text(
-                "Discover",
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const Spacer(),
-              GestureDetector(
-                onTap: () {
-                  final userRepository = context.read<UserRepository>();
-                  Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                      builder: (_) =>
-                          ProfileScreen(userRepository: userRepository),
-                    ),
-                  );
-                },
-                child: CircleAvatar(
-                  radius: 18,
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
-                  child: Text(
-                    safeLetter,
-                    style: const TextStyle(
-                      color: Colors.white,
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+              child: Row(
+                children: [
+                  Text(
+                    "Discover",
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontSize: 24,
                       fontWeight: FontWeight.w600,
+                      height: 1.12,
                     ),
                   ),
-                ),
+                  const Spacer(),
+                  UserAvatar(
+                    username: username,
+                    size: 38,
+                    onTap: () {
+                      final userRepository = context.read<UserRepository>();
+                      Navigator.push(
+                        context,
+                        CupertinoPageRoute(
+                          builder: (_) =>
+                              ProfileScreen(userRepository: userRepository),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
@@ -506,48 +512,171 @@ class _DeepResearchScreenState extends State<DeepResearchScreen> {
     );
   }
 
-  Widget _buildTagCloud() {
+  Widget _buildTagStarter() {
     if (_isLoadingTags) {
       return const SizedBox(
-        height: 56,
+        height: 132,
         child: Center(child: CupertinoActivityIndicator()),
       );
     }
 
-    if (_filteredTags.isEmpty) {
-      return const SizedBox(
-        height: 56,
+    final query = _tagSearchController.text.trim();
+    final source = query.isEmpty
+        ? _priorityTags()
+        : _filteredTags.take(8).toList(growable: false);
+
+    if (source.isEmpty) {
+      return SizedBox(
+        height: 96,
         child: Center(
           child: Text(
             'No matching tags',
-            style: TextStyle(color: Colors.white38),
+            style: TextStyle(color: AppTheme.ink.withValues(alpha: 0.42)),
           ),
         ),
       );
     }
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: _filteredTags.map((tag) {
-        final selected = _selectedTags.contains(tag);
-        return GestureDetector(
-          onTap: () => _toggleTag(tag),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: selected
-                  ? const Color(0xFF5AA9FF)
-                  : Theme.of(context).cardColor.withValues(alpha: 0.84),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: selected ? Colors.transparent : Colors.white12,
-              ),
-            ),
-            child: Text(tag, style: const TextStyle(color: Colors.white)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          query.isEmpty ? 'Start with a tag' : 'Matching tags',
+          style: const TextStyle(
+            color: AppTheme.ink,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
           ),
-        );
-      }).toList(),
+        ),
+        const SizedBox(height: 12),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: source.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 2.7,
+          ),
+          itemBuilder: (context, index) {
+            final tag = source[index];
+            return GestureDetector(
+              onTap: () => _toggleTag(tag),
+              child: Container(
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor.withValues(alpha: 0.84),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Text(
+                  tag,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.ink,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
     );
+  }
+
+  Widget _buildCompactTagSuggestions() {
+    if (_isLoadingTags) {
+      return const SizedBox(
+        height: 44,
+        child: Center(child: CupertinoActivityIndicator()),
+      );
+    }
+
+    final query = _tagSearchController.text.trim();
+    final source = (query.isEmpty ? _allTags : _filteredTags)
+        .where((tag) => !_selectedTags.contains(tag))
+        .take(10)
+        .toList(growable: false);
+
+    if (source.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        Text(
+          query.isEmpty ? 'Add another tag' : 'Matching tags',
+          style: TextStyle(
+            color: AppTheme.ink.withValues(alpha: 0.62),
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: source.map((tag) {
+            return GestureDetector(
+              onTap: () => _toggleTag(tag),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor.withValues(alpha: 0.84),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Text(
+                  tag,
+                  style: const TextStyle(color: AppTheme.ink, fontSize: 13),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  List<String> _priorityTags() {
+    const preferred = [
+      'action',
+      'comedy',
+      'fantasy',
+      'chill',
+      'mystery',
+      'history',
+    ];
+    final available = _allTags.toSet();
+    final picked = preferred.where(available.contains).toList();
+    if (picked.length >= 6) return picked.take(6).toList();
+    return [
+      ...picked,
+      ..._allTags.where((tag) => !picked.contains(tag)),
+    ].take(6).toList();
+  }
+
+  List<String> _seedTagsForType(String type) {
+    if (type == 'all') return const [];
+
+    final available = _allTags.toSet();
+    final seeds = switch (type) {
+      'movie' => const ['action', 'drama', 'fantasy', 'mystery'],
+      'music' => const ['chill', 'epic', 'retro', 'sad'],
+      'book' => const ['fantasy', 'history', 'mystery', 'romance'],
+      _ => const <String>[],
+    };
+
+    final picked = seeds.where(available.contains).take(3).toList();
+    if (picked.isNotEmpty) return picked;
+    return _priorityTags().take(3).toList();
   }
 }

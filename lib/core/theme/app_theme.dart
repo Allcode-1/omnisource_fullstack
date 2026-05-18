@@ -4,10 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTheme {
   static const primary = Color(0xFF0984E3);
   static const secondary = Color(0xFF58616B);
-  static const authBackground = Color(0xFF121212);
-  static const appBackground = Color(0xFF121212);
-  static const surface = Color(0xFF181818);
-  static const surfaceAlt = Color(0xFF202020);
+  static const ink = Color(0xFFFAF0F0);
+  static const authBackground = Color(0xFF100E0E);
+  static const appBackground = Color(0xFF100E0E);
+  static const surface = Color(0xFF171414);
+  static const surfaceAlt = Color(0xFF211D1D);
   static const line = Color(0xFF2B2B2B);
 
   static ThemeData get authTheme => _buildTheme(
@@ -18,14 +19,8 @@ class AppTheme {
   static ThemeData get mainTheme =>
       _buildTheme(scaffoldColor: Colors.transparent, inputFill: surface);
 
-  static BoxDecoration get mainBackgroundDecoration => const BoxDecoration(
-    gradient: LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [Color(0xFF121212), Color(0xFF101010), Color(0xFF121212)],
-      stops: [0.0, 0.5, 1.0],
-    ),
-  );
+  static BoxDecoration get mainBackgroundDecoration =>
+      const BoxDecoration(color: appBackground);
 
   static ThemeData _buildTheme({
     required Color scaffoldColor,
@@ -37,36 +32,38 @@ class AppTheme {
       secondary: secondary,
       surface: surface,
       error: Color(0xFFFF6B6B),
-      onPrimary: Colors.white,
-      onSecondary: Colors.white,
-      onSurface: Colors.white,
+      onPrimary: ink,
+      onSecondary: ink,
+      onSurface: ink,
     );
 
-    final textTheme = GoogleFonts.plusJakartaSansTextTheme(base.textTheme)
-        .copyWith(
-          displayMedium: GoogleFonts.plusJakartaSans(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.5,
-          ),
-          headlineSmall: GoogleFonts.plusJakartaSans(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.2,
-          ),
-          titleLarge: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
-          titleMedium: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
-          bodyLarge: GoogleFonts.plusJakartaSans(
-            fontWeight: FontWeight.w400,
-            color: Colors.white.withValues(alpha: 0.95),
-          ),
-          bodyMedium: GoogleFonts.plusJakartaSans(
-            fontWeight: FontWeight.w400,
-            color: Colors.white.withValues(alpha: 0.86),
-          ),
-          labelLarge: GoogleFonts.plusJakartaSans(
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.1,
-          ),
-        );
+    final textTheme = GoogleFonts.interTextTheme(base.textTheme).copyWith(
+      displayMedium: GoogleFonts.inter(
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0,
+        color: ink,
+      ),
+      headlineSmall: GoogleFonts.inter(
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0,
+        color: ink,
+      ),
+      titleLarge: GoogleFonts.inter(fontWeight: FontWeight.w500, color: ink),
+      titleMedium: GoogleFonts.inter(fontWeight: FontWeight.w500, color: ink),
+      bodyLarge: GoogleFonts.inter(
+        fontWeight: FontWeight.w400,
+        color: ink.withValues(alpha: 0.95),
+      ),
+      bodyMedium: GoogleFonts.inter(
+        fontWeight: FontWeight.w400,
+        color: ink.withValues(alpha: 0.86),
+      ),
+      labelLarge: GoogleFonts.inter(
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0,
+        color: ink,
+      ),
+    );
 
     return ThemeData(
       useMaterial3: true,
@@ -87,7 +84,7 @@ class AppTheme {
         actionsPadding: const EdgeInsets.only(right: 8),
         titleTextStyle: textTheme.titleLarge?.copyWith(
           fontSize: 24,
-          color: Colors.white,
+          color: ink,
         ),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -124,7 +121,7 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primary,
-          foregroundColor: Colors.white,
+          foregroundColor: ink,
           elevation: 0,
           minimumSize: const Size(0, 52),
           shape: RoundedRectangleBorder(
@@ -135,8 +132,8 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.white,
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+          foregroundColor: ink,
+          side: BorderSide(color: ink.withValues(alpha: 0.12)),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -147,20 +144,20 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: surface,
         selectedColor: primary.withValues(alpha: 0.18),
-        labelStyle: textTheme.bodySmall ?? const TextStyle(color: Colors.white),
+        labelStyle: textTheme.bodySmall ?? const TextStyle(color: ink),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: surfaceAlt,
-        contentTextStyle: textTheme.bodyMedium?.copyWith(color: Colors.white),
+        contentTextStyle: textTheme.bodyMedium?.copyWith(color: ink),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       listTileTheme: ListTileThemeData(
-        iconColor: Colors.white.withValues(alpha: 0.9),
-        textColor: Colors.white,
+        iconColor: ink.withValues(alpha: 0.9),
+        textColor: ink,
         tileColor: surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
@@ -169,7 +166,7 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
       ),
       dividerTheme: DividerThemeData(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: ink.withValues(alpha: 0.08),
         thickness: 1,
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(color: primary),

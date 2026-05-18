@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/unified_content.dart';
 import '../../bloc/library/library_cubit.dart';
 import '../home/detail_screen.dart';
@@ -76,7 +77,6 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     List<UnifiedContent> filteredItems = _items.where((item) {
       if (filterType == 'all') return true;
       return item.type == filterType;
@@ -84,102 +84,79 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
 
     if (!sortNewest) filteredItems = filteredItems.reversed.toList();
 
-    final stats = _getStats();
-
     return Scaffold(
+      backgroundColor: AppTheme.appBackground,
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          CupertinoSliverNavigationBar(
-            largeTitle: Text(
-              widget.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            middle: Text(
-              widget.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            border: null,
-            backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.86),
-            trailing: CupertinoButton(
-              padding: EdgeInsets.zero,
-              child: Text(
-                isEditMode ? "Done" : "Edit",
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              onPressed: () => setState(() => isEditMode = !isEditMode),
+          SliverToBoxAdapter(child: _buildHeader()),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+              child: _buildHero(),
             ),
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: _buildHeaderCard(theme, stats),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-              child: _buildFilterRow(theme),
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
+              child: _buildFilterRow(),
             ),
           ),
           if (isEditMode)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Row(
-                  children: [
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      child: const Text("Select All"),
-                      onPressed: () => setState(
-                        () => selectedIds = filteredItems
-                            .map((e) => _contentRef(e))
-                            .toSet(),
-                      ),
-                    ),
-                    const Spacer(),
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      child: const Text("Deselect"),
-                      onPressed: () => setState(() => selectedIds.clear()),
-                    ),
-                  ],
-                ),
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                child: _buildEditTools(filteredItems),
               ),
             ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final item = filteredItems[index];
-                final isSelected = selectedIds.contains(_contentRef(item));
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _buildItemTile(theme, item, isSelected),
-                );
-              }, childCount: filteredItems.length),
+          if (filteredItems.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Text(
+                  'No items here yet',
+                  style: TextStyle(
+                    color: AppTheme.ink.withValues(alpha: 0.46),
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 110),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final item = filteredItems[index];
+                  final isSelected = selectedIds.contains(_contentRef(item));
+                  return _buildItemTile(item, isSelected);
+                }, childCount: filteredItems.length),
+              ),
             ),
-          ),
         ],
       ),
       bottomSheet: isEditMode && selectedIds.isNotEmpty
           ? SafeArea(
               top: false,
               child: Container(
-                color: theme.colorScheme.surface.withValues(alpha: 0.96),
-                padding: const EdgeInsets.all(14),
-                child: CupertinoButton(
-                  color: CupertinoColors.destructiveRed,
-                  onPressed: _isRemoving ? null : _removeSelected,
-                  child: _isRemoving
-                      ? const CupertinoActivityIndicator()
-                      : Text("Remove Selected (${selectedIds.length})"),
+                color: AppTheme.surface.withValues(alpha: 0.98),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF5D73),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: _isRemoving ? null : _removeSelected,
+                    child: _isRemoving
+                        ? const CupertinoActivityIndicator(color: Colors.white)
+                        : Text('Remove Selected (${selectedIds.length})'),
+                  ),
                 ),
               ),
             )
@@ -187,81 +164,41 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     );
   }
 
-  Widget _buildHeaderCard(ThemeData theme, String stats) {
-    final cover = _items.isNotEmpty ? _items.first.imageUrl ?? '' : '';
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        color: theme.colorScheme.surface.withValues(alpha: 0.86),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: Stack(
+  Widget _buildHeader() {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+        child: Row(
           children: [
-            if (cover.isNotEmpty)
-              Positioned.fill(
-                child: Image.network(
-                  cover,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const SizedBox.shrink(),
-                ),
-              ),
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomLeft,
-                    end: Alignment.topRight,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.72),
-                      Colors.black.withValues(alpha: 0.35),
-                    ],
-                  ),
+            _CircleIconButton(
+              icon: CupertinoIcons.back,
+              onTap: () => Navigator.maybePop(context),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                widget.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (widget.description?.trim().isNotEmpty == true) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      widget.description!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.76),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _chip('${_items.length} items'),
-                      _chip(stats),
-                      _chip(sortNewest ? 'Newest first' : 'Oldest first'),
-                    ],
-                  ),
-                ],
+            const SizedBox(width: 8),
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              minimumSize: const Size(40, 40),
+              onPressed: () => setState(() {
+                isEditMode = !isEditMode;
+                selectedIds.clear();
+              }),
+              child: Text(
+                isEditMode ? 'Done' : 'Edit',
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -270,176 +207,360 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     );
   }
 
-  Widget _buildFilterRow(ThemeData theme) {
+  Widget _buildHero() {
+    final stats = _getStats();
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        _PlaylistCover(items: _items, isFavorites: widget.isFavorites),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 3),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.ink,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    height: 1.06,
+                  ),
+                ),
+                if (widget.description?.trim().isNotEmpty == true) ...[
+                  const SizedBox(height: 7),
+                  Text(
+                    widget.description!.trim(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppTheme.ink.withValues(alpha: 0.58),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Text(
+                  '${_items.length} items - $stats',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppTheme.ink.withValues(alpha: 0.48),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterRow() {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          _buildFilterChip(theme, "All", 'all'),
-          _buildFilterChip(theme, "Music", 'music'),
-          _buildFilterChip(theme, "Movies", 'movie'),
-          _buildFilterChip(theme, "Books", 'book'),
+          _PillTab(
+            label: 'All',
+            selected: filterType == 'all',
+            onTap: () {
+              setState(() => filterType = 'all');
+            },
+          ),
+          _PillTab(
+            label: 'Music',
+            selected: filterType == 'music',
+            onTap: () {
+              setState(() => filterType = 'music');
+            },
+          ),
+          _PillTab(
+            label: 'Movies',
+            selected: filterType == 'movie',
+            onTap: () {
+              setState(() => filterType = 'movie');
+            },
+          ),
+          _PillTab(
+            label: 'Books',
+            selected: filterType == 'book',
+            onTap: () {
+              setState(() => filterType = 'book');
+            },
+          ),
           const SizedBox(width: 8),
-          CupertinoButton(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            onPressed: () => setState(() => sortNewest = !sortNewest),
-            child: Icon(
-              sortNewest ? CupertinoIcons.sort_down : CupertinoIcons.sort_up,
-              size: 18,
-              color: Colors.white.withValues(alpha: 0.84),
-            ),
+          _CircleIconButton(
+            icon: sortNewest
+                ? CupertinoIcons.sort_down
+                : CupertinoIcons.sort_up,
+            onTap: () => setState(() => sortNewest = !sortNewest),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildItemTile(ThemeData theme, UnifiedContent item, bool isSelected) {
-    final imageUrl = (item.imageUrl ?? '').trim();
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.84),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isSelected
-              ? theme.colorScheme.primary.withValues(alpha: 0.45)
-              : Colors.white.withValues(alpha: 0.06),
+  Widget _buildEditTools(List<UnifiedContent> filteredItems) {
+    final allSelected =
+        filteredItems.isNotEmpty && selectedIds.length == filteredItems.length;
+    return Row(
+      children: [
+        CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () => setState(() {
+            selectedIds = allSelected
+                ? {}
+                : filteredItems.map((item) => _contentRef(item)).toSet();
+          }),
+          child: Text(allSelected ? 'Deselect' : 'Select all'),
         ),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-        leading: Stack(
+        const Spacer(),
+        Text(
+          '${selectedIds.length} selected',
+          style: TextStyle(color: AppTheme.ink.withValues(alpha: 0.52)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildItemTile(UnifiedContent item, bool isSelected) {
+    final imageUrl = (item.imageUrl ?? '').trim();
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (isEditMode) {
+          setState(() {
+            if (isSelected) {
+              selectedIds.remove(_contentRef(item));
+            } else {
+              selectedIds.add(_contentRef(item));
+            }
+          });
+          return;
+        }
+        Navigator.push(
+          context,
+          CupertinoPageRoute(builder: (_) => DetailScreen(content: item)),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: AppTheme.ink.withValues(alpha: 0.08)),
+          ),
+        ),
+        child: Row(
           children: [
+            if (isEditMode) ...[
+              Icon(
+                isSelected
+                    ? CupertinoIcons.check_mark_circled_solid
+                    : CupertinoIcons.circle,
+                color: isSelected
+                    ? AppTheme.primary
+                    : AppTheme.ink.withValues(alpha: 0.42),
+              ),
+              const SizedBox(width: 12),
+            ],
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: imageUrl.isNotEmpty
-                  ? Image.network(
-                      imageUrl,
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: Colors.white10,
-                        width: 50,
-                        height: 50,
-                        child: const Icon(
-                          CupertinoIcons.photo,
-                          color: Colors.white30,
-                        ),
-                      ),
-                    )
-                  : Container(
-                      color: Colors.white10,
-                      width: 50,
-                      height: 50,
-                      child: const Icon(
-                        CupertinoIcons.photo,
-                        color: Colors.white30,
-                      ),
-                    ),
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                width: 58,
+                height: 58,
+                child: imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            _itemFallback(),
+                      )
+                    : _itemFallback(),
+              ),
             ),
-            if (isEditMode)
-              Positioned.fill(
-                child: Container(
-                  color: isSelected
-                      ? theme.colorScheme.primary.withValues(alpha: 0.4)
-                      : Colors.black.withValues(alpha: 0.4),
-                  child: Icon(
-                    isSelected
-                        ? CupertinoIcons.check_mark_circled_solid
-                        : CupertinoIcons.circle,
-                    color: Colors.white,
-                    size: 20,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 3),
+                  Text(
+                    _subtitle(item),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppTheme.ink.withValues(alpha: 0.52),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (!isEditMode)
+              Icon(
+                CupertinoIcons.chevron_right,
+                color: AppTheme.ink.withValues(alpha: 0.38),
+                size: 18,
               ),
           ],
         ),
-        title: Text(
-          item.title,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(
-          item.subtitle ?? item.type,
-          style: const TextStyle(color: Colors.white60),
-        ),
-        trailing: isEditMode
-            ? const SizedBox.shrink()
-            : Icon(
-                CupertinoIcons.chevron_right,
-                size: 16,
-                color: Colors.white.withValues(alpha: 0.6),
-              ),
-        onTap: () {
-          if (isEditMode) {
-            setState(() {
-              if (isSelected) {
-                selectedIds.remove(_contentRef(item));
-              } else {
-                selectedIds.add(_contentRef(item));
-              }
-            });
-            return;
-          }
-          Navigator.push(
-            context,
-            CupertinoPageRoute(builder: (_) => DetailScreen(content: item)),
-          );
-        },
       ),
     );
   }
 
-  Widget _buildFilterChip(ThemeData theme, String label, String type) {
-    final isSelected = filterType == type;
-    return GestureDetector(
-      onTap: () => setState(() => filterType = type),
-      child: Container(
-        margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? theme.colorScheme.surfaceContainerHighest
-              : theme.colorScheme.surface.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: isSelected ? 0.15 : 0.08),
-          ),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w500,
-            fontSize: 13,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _chip(String text) {
+  Widget _itemFallback() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-        ),
+      color: AppTheme.surfaceAlt,
+      child: Icon(
+        CupertinoIcons.photo,
+        color: AppTheme.ink.withValues(alpha: 0.3),
       ),
     );
+  }
+
+  String _subtitle(UnifiedContent item) {
+    final pieces = <String>[_typeLabel(item.type)];
+    if (item.rating > 0) pieces.add(item.rating.toStringAsFixed(1));
+    if ((item.subtitle ?? '').isNotEmpty) pieces.add(item.subtitle!);
+    return pieces.join(' - ');
+  }
+
+  String _typeLabel(String type) {
+    switch (type) {
+      case 'movie':
+        return 'Movie';
+      case 'book':
+        return 'Book';
+      case 'music':
+        return 'Music';
+      default:
+        return 'Content';
+    }
   }
 
   String _getStats() {
     final music = _items.where((i) => i.type == 'music').length;
     final movie = _items.where((i) => i.type == 'movie').length;
     final book = _items.where((i) => i.type == 'book').length;
-    return '$music music • $movie movies • $book books';
+    return '$music music - $movie movies - $book books';
+  }
+}
+
+class _PlaylistCover extends StatelessWidget {
+  final List<UnifiedContent> items;
+  final bool isFavorites;
+
+  const _PlaylistCover({required this.items, required this.isFavorites});
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty || items.first.imageUrl?.trim().isEmpty != false) {
+      return Container(
+        width: 112,
+        height: 112,
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceAlt,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Icon(
+          isFavorites ? CupertinoIcons.heart_fill : CupertinoIcons.music_note,
+          color: isFavorites
+              ? const Color(0xFFFF5D73)
+              : AppTheme.ink.withValues(alpha: 0.42),
+          size: 42,
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Image.network(
+        items.first.imageUrl!,
+        width: 112,
+        height: 112,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            Container(width: 112, height: 112, color: AppTheme.surfaceAlt),
+      ),
+    );
+  }
+}
+
+class _PillTab extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _PillTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppTheme.primary
+              : AppTheme.surface.withValues(alpha: 0.84),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: AppTheme.ink,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CircleIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _CircleIconButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppTheme.surface.withValues(alpha: 0.82),
+          shape: BoxShape.circle,
+          border: Border.all(color: AppTheme.ink.withValues(alpha: 0.08)),
+        ),
+        child: Icon(icon, color: AppTheme.ink, size: 22),
+      ),
+    );
   }
 }

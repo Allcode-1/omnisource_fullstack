@@ -2,9 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../domain/entities/unified_content.dart';
 import '../../../domain/repositories/content_repository.dart';
-import '../../widgets/secondary_header_sliver.dart';
+import '../../widgets/minimal_page_header.dart';
 import '../search/search_grid_card.dart';
 
 class CollectionsScreen extends StatefulWidget {
@@ -16,15 +17,36 @@ class CollectionsScreen extends StatefulWidget {
 
 class _CollectionsScreenState extends State<CollectionsScreen> {
   static const _collections = [
-    ('Cyber Mood', ['cyberpunk', 'noir'], 'movie'),
-    ('Late Night', ['chill', 'dark'], 'music'),
-    ('Mind Benders', ['mystery', 'mind-bending'], 'all'),
-    ('Epic Worlds', ['fantasy', 'epic'], 'book'),
+    _CollectionConfig(
+      title: 'Cyber Mood',
+      tags: ['cyberpunk', 'noir'],
+      type: 'movie',
+      colors: [Color(0xFF2DD4BF), Color(0xFF2563EB)],
+    ),
+    _CollectionConfig(
+      title: 'Late Night',
+      tags: ['chill', 'dark'],
+      type: 'music',
+      colors: [Color(0xFF7C3AED), Color(0xFFDB2777)],
+    ),
+    _CollectionConfig(
+      title: 'Mind Benders',
+      tags: ['mystery', 'mind-bending'],
+      type: 'all',
+      colors: [Color(0xFFFF375F), Color(0xFFFF9F0A)],
+    ),
+    _CollectionConfig(
+      title: 'Epic Worlds',
+      tags: ['fantasy', 'epic'],
+      type: 'book',
+      colors: [Color(0xFF22C55E), Color(0xFF84CC16)],
+    ),
   ];
 
   final Map<String, List<UnifiedContent>> _itemsByCollection = {};
   bool _loading = true;
   String _error = '';
+  String _activeType = 'all';
 
   String _contentKey(UnifiedContent item) => '${item.type}:${item.externalId}';
 
@@ -43,13 +65,12 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
     try {
       final repo = context.read<ContentRepository>();
       for (final collection in _collections) {
-        final name = collection.$1;
-        final tags = collection.$2;
-        final type = collection.$3;
         final responses = await Future.wait(
-          tags.map(
-            (tag) =>
-                repo.getDeepResearch(tag, type: type == 'all' ? null : type),
+          collection.tags.map(
+            (tag) => repo.getDeepResearch(
+              tag,
+              type: collection.type == 'all' ? null : collection.type,
+            ),
           ),
         );
 
@@ -59,113 +80,253 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
             map[_contentKey(item)] = item;
           }
         }
-        _itemsByCollection[name] = map.values.take(8).toList();
+        _itemsByCollection[collection.title] = map.values.take(24).toList();
       }
     } catch (_) {
       _error = 'Failed to load collections';
     } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final visible = _collections.where((collection) {
+      return _activeType == 'all' ||
+          collection.type == _activeType ||
+          collection.type == 'all';
+    }).toList();
+
     return Scaffold(
+      backgroundColor: AppTheme.appBackground,
+      body: RefreshIndicator(
+        backgroundColor: AppTheme.surface,
+        color: AppTheme.ink,
+        onRefresh: _load,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          slivers: [
+            const SliverToBoxAdapter(
+              child: MinimalPageHeader(title: 'Collections'),
+            ),
+            SliverToBoxAdapter(
+              child: MinimalTypeTabs(
+                activeType: _activeType,
+                onChanged: (type) => setState(() => _activeType = type),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: SubtleCountText(
+                text: _loading
+                    ? 'Curating collections...'
+                    : '${visible.length} collections built from moods and genres.',
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 22)),
+            if (_loading)
+              const SliverFillRemaining(
+                child: Center(child: CupertinoActivityIndicator()),
+              )
+            else if (_error.isNotEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Text(
+                    _error,
+                    style: const TextStyle(color: Color(0xFFFF7A7A)),
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 104),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 0.92,
+                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final collection = visible[index];
+                    final items =
+                        _itemsByCollection[collection.title] ??
+                        const <UnifiedContent>[];
+                    return _CollectionTile(
+                      collection: collection,
+                      itemCount: items.length,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          CupertinoPageRoute(
+                            builder: (_) => _CollectionDetailScreen(
+                              collection: collection,
+                              items: items,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  }, childCount: visible.length),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CollectionTile extends StatelessWidget {
+  final _CollectionConfig collection;
+  final int itemCount;
+  final VoidCallback onTap;
+
+  const _CollectionTile({
+    required this.collection,
+    required this.itemCount,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: collection.colors,
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -22,
+              top: -18,
+              child: Container(
+                width: 108,
+                height: 108,
+                decoration: BoxDecoration(
+                  color: AppTheme.ink.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  collection.type == 'all'
+                      ? 'MIXED'
+                      : collection.type.toUpperCase(),
+                  style: TextStyle(
+                    color: AppTheme.ink.withValues(alpha: 0.68),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  collection.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.ink,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    height: 1.08,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  '${collection.tags.join(', ')}  $itemCount picks',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppTheme.ink.withValues(alpha: 0.72),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CollectionDetailScreen extends StatelessWidget {
+  final _CollectionConfig collection;
+  final List<UnifiedContent> items;
+
+  const _CollectionDetailScreen({
+    required this.collection,
+    required this.items,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.appBackground,
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          const SecondaryHeaderSliver(
-            title: 'Collections',
-            subtitle: 'Curated sets across moods and genres',
-            infoLabel: 'Multi-tag bundles mixed from deep research results',
-            infoIcon: CupertinoIcons.square_stack_3d_up_fill,
+          SliverToBoxAdapter(child: MinimalPageHeader(title: collection.title)),
+          SliverToBoxAdapter(
+            child: SubtleCountText(
+              text: '${items.length} picks from ${collection.tags.join(', ')}.',
+            ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 12)),
-          if (_loading)
+          const SliverToBoxAdapter(child: SizedBox(height: 22)),
+          if (items.isEmpty)
             const SliverFillRemaining(
-              child: Center(child: CupertinoActivityIndicator()),
-            )
-          else if (_error.isNotEmpty)
-            SliverFillRemaining(
               hasScrollBody: false,
               child: Center(
                 child: Text(
-                  _error,
-                  style: const TextStyle(color: Color(0xFFFF7A7A)),
+                  'No items in this collection yet',
+                  style: TextStyle(color: Colors.white54),
                 ),
               ),
             )
           else
-            SliverList(
-              delegate: SliverChildListDelegate(<Widget>[
-                ..._collections.map((entry) {
-                  final name = entry.$1;
-                  final tags = entry.$2;
-                  final items =
-                      _itemsByCollection[name] ?? const <UnifiedContent>[];
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 8,
-                          children: tags
-                              .map(
-                                (tag) => Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(
-                                      context,
-                                    ).cardColor.withValues(alpha: 0.84),
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: Text(
-                                    tag,
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                        const SizedBox(height: 12),
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: items.length,
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 14,
-                                childAspectRatio: 0.63,
-                              ),
-                          itemBuilder: (context, index) {
-                            return SearchGridCard(item: items[index]);
-                          },
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                const SizedBox(height: 100),
-              ]),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 104),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 18,
+                  childAspectRatio: 0.63,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => SearchGridCard(item: items[index]),
+                  childCount: items.length,
+                ),
+              ),
             ),
         ],
       ),
     );
   }
+}
+
+class _CollectionConfig {
+  final String title;
+  final List<String> tags;
+  final String type;
+  final List<Color> colors;
+
+  const _CollectionConfig({
+    required this.title,
+    required this.tags,
+    required this.type,
+    required this.colors,
+  });
 }

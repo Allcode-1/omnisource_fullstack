@@ -11,9 +11,9 @@ import '../../bloc/library/library_cubit.dart';
 import '../../bloc/library/library_state.dart';
 import '../../bloc/search/search_cubit.dart';
 import '../../bloc/search/search_state.dart';
-import '../calendar/release_calendar_screen.dart';
-import '../mood/mood_picker_screen.dart';
+import '../../widgets/user_avatar.dart';
 import '../profile/profile_screen.dart';
+import '../calendar/release_calendar_screen.dart';
 import 'search_grid_card.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -79,30 +79,16 @@ class _SearchScreenState extends State<SearchScreen> {
                 controller: _scrollController,
                 physics: const BouncingScrollPhysics(),
                 slivers: [
-                  const SliverToBoxAdapter(child: SizedBox(height: 120)),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: MediaQuery.paddingOf(context).top + 76,
+                    ),
+                  ),
 
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: _buildSearchBar(context),
-                    ),
-                  ),
-
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: _buildTopActions(context, state),
-                    ),
-                  ),
-
-                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: _buildFeatureShortcuts(context),
                     ),
                   ),
 
@@ -186,12 +172,8 @@ class _SearchScreenState extends State<SearchScreen> {
         final username = authState is AuthAuthenticated
             ? authState.user.username
             : "U";
-        final safeLetter = username.trim().isNotEmpty
-            ? username.trim().substring(0, 1).toUpperCase()
-            : "U";
 
         return Container(
-          padding: const EdgeInsets.fromLTRB(20, 54, 20, 10),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
@@ -202,113 +184,61 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "Search",
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  final userRepository = context.read<UserRepository>();
-                  Navigator.push(
-                    context,
-                    CupertinoPageRoute(
-                      builder: (_) =>
-                          ProfileScreen(userRepository: userRepository),
-                    ),
-                  );
-                },
-                child: CircleAvatar(
-                  radius: 18,
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
-                  child: Text(
-                    safeLetter,
-                    style: const TextStyle(
-                      color: Colors.white,
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Search",
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontSize: 24,
                       fontWeight: FontWeight.w600,
+                      height: 1.12,
                     ),
                   ),
-                ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => Navigator.push(
+                          context,
+                          CupertinoPageRoute(
+                            builder: (_) => const ReleaseCalendarScreen(),
+                          ),
+                        ),
+                        child: const SizedBox(
+                          width: 38,
+                          height: 38,
+                          child: Icon(CupertinoIcons.calendar_today, size: 22),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      UserAvatar(
+                        username: username,
+                        size: 38,
+                        onTap: () {
+                          final userRepository = context.read<UserRepository>();
+                          Navigator.push(
+                            context,
+                            CupertinoPageRoute(
+                              builder: (_) =>
+                                  ProfileScreen(userRepository: userRepository),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
-    );
-  }
-
-  Widget _buildTopActions(BuildContext context, SearchState state) {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () => _showAdvancedFilters(context, state),
-            icon: const Icon(CupertinoIcons.slider_horizontal_3, size: 18),
-            label: const Text('Advanced Filters'),
-          ),
-        ),
-        const SizedBox(width: 8),
-        IconButton(
-          tooltip: 'Save query',
-          onPressed: () async {
-            final messenger = ScaffoldMessenger.of(context);
-            await context.read<SearchCubit>().saveCurrentQuery(
-              _searchController.text.trim(),
-            );
-            if (!mounted) return;
-            messenger.showSnackBar(
-              const SnackBar(content: Text('Search query saved')),
-            );
-          },
-          icon: const Icon(CupertinoIcons.bookmark_fill),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFeatureShortcuts(BuildContext context) {
-    final items = <({String label, IconData icon, Widget page})>[
-      (
-        label: 'Mood Picker',
-        icon: CupertinoIcons.layers_alt_fill,
-        page: const MoodPickerScreen(),
-      ),
-      (
-        label: 'Release Calendar',
-        icon: CupertinoIcons.calendar_today,
-        page: const ReleaseCalendarScreen(),
-      ),
-    ];
-
-    return SizedBox(
-      height: 38,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: items.length,
-        itemBuilder: (context, index) {
-          final item = items[index];
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: OutlinedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  CupertinoPageRoute(builder: (_) => item.page),
-                );
-              },
-              icon: Icon(item.icon, size: 16),
-              label: Text(item.label),
-            ),
-          );
-        },
-      ),
     );
   }
 
@@ -510,129 +440,6 @@ class _SearchScreenState extends State<SearchScreen> {
       }
       return true;
     }).toList();
-  }
-
-  Future<void> _showAdvancedFilters(
-    BuildContext context,
-    SearchState state,
-  ) async {
-    double minRating = state.minRating;
-    bool onlyLiked = state.onlyLiked;
-    final fromController = TextEditingController(
-      text: state.fromYear?.toString() ?? '',
-    );
-    final toController = TextEditingController(
-      text: state.toYear?.toString() ?? '',
-    );
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Advanced Search',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 16),
-                  Text('Min rating: ${minRating.toStringAsFixed(1)}'),
-                  Slider(
-                    value: minRating,
-                    min: 0,
-                    max: 10,
-                    divisions: 20,
-                    label: minRating.toStringAsFixed(1),
-                    onChanged: (value) =>
-                        setModalState(() => minRating = value),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: fromController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'From year',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextField(
-                          controller: toController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'To year',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  SwitchListTile(
-                    value: onlyLiked,
-                    onChanged: (value) =>
-                        setModalState(() => onlyLiked = value),
-                    title: const Text('Only liked'),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            context.read<SearchCubit>().setAdvancedFilters(
-                              minRating: 0.0,
-                              onlyLiked: false,
-                              clearFromYear: true,
-                              clearToYear: true,
-                            );
-                            Navigator.pop(ctx);
-                          },
-                          child: const Text('Reset'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            context.read<SearchCubit>().setAdvancedFilters(
-                              minRating: minRating,
-                              onlyLiked: onlyLiked,
-                              fromYear: int.tryParse(fromController.text),
-                              toYear: int.tryParse(toController.text),
-                            );
-                            Navigator.pop(ctx);
-                          },
-                          child: const Text('Apply'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
   Widget _buildEmptyState(bool isInitial) {
