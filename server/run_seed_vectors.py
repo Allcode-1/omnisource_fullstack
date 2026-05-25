@@ -68,9 +68,6 @@ async def _seed_metadata(
 
     if seed_home:
         home_types = ["all", "movie", "music", "book"]
-        if content_type != "all":
-            home_types = [content_type]
-
         for current_type in home_types:
             home_data = await sync_service.content_service.get_home_data(current_type)
             for section_items in home_data.values():
