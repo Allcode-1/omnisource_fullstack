@@ -11,13 +11,20 @@ enum ContentCategory { all, movie, music, book }
 class HomeCubit extends Cubit<HomeState> {
   final ContentRepository repository;
   int _loadToken = 0;
+  final Map<ContentCategory, HomeState> _stateCache = {};
 
   HomeCubit(this.repository) : super(HomeState(category: ContentCategory.all));
 
   void setCategory(ContentCategory category) {
     if (state.category == category) return;
-    emit(state.copyWith(category: category, isLoading: true));
-    loadContent();
+    final cached = _stateCache[category];
+    if (cached != null) {
+      emit(cached.copyWith(category: category, isLoading: false, error: ''));
+      loadContent(silent: true);
+    } else {
+      emit(state.copyWith(category: category, isLoading: true));
+      loadContent();
+    }
   }
 
   String _getCategoryType() {
@@ -33,39 +40,39 @@ class HomeCubit extends Cubit<HomeState> {
     }
   }
 
-  Future<void> loadContent() async {
+  Future<void> loadContent({bool silent = false}) async {
     final token = ++_loadToken;
-    emit(state.copyWith(isLoading: true, error: ''));
+    if (!silent) {
+      emit(state.copyWith(isLoading: true, error: ''));
+    }
 
     try {
       final type = _getCategoryType();
 
       final results = await Future.wait([
-        repository.getTrending(type: type),
         repository.getRecommendations(type: type),
         repository.getHomeData(type: type),
       ]);
 
-      final trendingList = results[0] as List<UnifiedContent>;
-      final recsList = results[1] as List<UnifiedContent>;
-      final homeDataMap = results[2] as Map<String, List<UnifiedContent>>;
+      final recsList = results[0] as List<UnifiedContent>;
+      final homeDataMap = results[1] as Map<String, List<UnifiedContent>>;
       if (isClosed || token != _loadToken) return;
 
       final finalTrending =
           homeDataMap['Trending Now'] ??
           homeDataMap['Trending'] ??
-          trendingList;
+          _flattenHomeMap(homeDataMap);
       final recommendations = homeDataMap['For You'] ?? recsList;
 
-      emit(
-        state.copyWith(
-          isLoading: false,
-          trending: _dedupeContent(finalTrending),
-          recommendations: _dedupeContent(recommendations),
-          homeMap: _dedupeHomeMap(homeDataMap),
-          error: '',
-        ),
+      final nextState = state.copyWith(
+        isLoading: false,
+        trending: _dedupeContent(finalTrending),
+        recommendations: _dedupeContent(recommendations),
+        homeMap: _dedupeHomeMap(homeDataMap),
+        error: '',
       );
+      _stateCache[state.category] = nextState;
+      emit(nextState);
     } catch (e, st) {
       AppLogger.error(
         'Home content loading failed',
@@ -113,6 +120,12 @@ class HomeCubit extends Cubit<HomeState> {
     Map<String, List<UnifiedContent>> source,
   ) {
     return source.map((key, value) => MapEntry(key, _dedupeContent(value)));
+  }
+
+  List<UnifiedContent> _flattenHomeMap(
+    Map<String, List<UnifiedContent>> source,
+  ) {
+    return source.values.expand((items) => items).toList();
   }
 
   String _contentKey(UnifiedContent item) {

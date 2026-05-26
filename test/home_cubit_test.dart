@@ -66,7 +66,7 @@ void main() {
         expect(cubit.state.trending.first.externalId, 't2');
         expect(cubit.state.recommendations.first.externalId, 'r2');
         expect(cubit.state.homeMap.containsKey('Extra'), isTrue);
-        expect(repository.lastTrendingType, 'all');
+        expect(repository.trendingCalls, 0);
         expect(repository.lastRecommendationsType, 'all');
         expect(repository.lastHomeType, 'all');
       },
@@ -79,18 +79,18 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
       expect(cubit.state.category, ContentCategory.book);
-      expect(repository.lastTrendingType, 'book');
+      expect(repository.trendingCalls, 0);
       expect(repository.lastRecommendationsType, 'book');
       expect(repository.lastHomeType, 'book');
     });
 
     test('loadContent sets error on repository failure', () async {
-      repository.trendingError = Exception('boom');
+      repository.homeDataError = Exception('boom');
 
       await cubit.loadContent();
 
       expect(cubit.state.isLoading, isFalse);
-      expect(repository.trendingCalls, 1);
+      expect(repository.homeDataCalls, 1);
       expect(cubit.state.trending, isEmpty);
     });
 

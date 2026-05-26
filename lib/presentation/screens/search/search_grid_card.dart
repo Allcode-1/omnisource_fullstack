@@ -8,6 +8,7 @@ import '../../../domain/repositories/analytics_repository.dart';
 import '../../bloc/library/library_cubit.dart';
 import '../../bloc/library/library_state.dart';
 import '../../widgets/content_quick_actions.dart';
+import '../../widgets/omni_cached_image.dart';
 import '../home/detail_screen.dart';
 
 class SearchGridCard extends StatelessWidget {
@@ -57,14 +58,11 @@ class SearchGridCard extends StatelessWidget {
                   child: Stack(
                     children: [
                       Positioned.fill(
-                        child: imageUrl.isNotEmpty
-                            ? Image.network(
-                                imageUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, error, stackTrace) =>
-                                    _buildImageFallback(theme),
-                              )
-                            : _buildImageFallback(theme),
+                        child: OmniCachedImage(
+                          imageUrl: imageUrl,
+                          fallback: _buildImageFallback(theme),
+                          memCacheWidth: 420,
+                        ),
                       ),
                       Positioned.fill(
                         child: DecoratedBox(

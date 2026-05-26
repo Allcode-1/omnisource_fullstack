@@ -205,6 +205,22 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> logout() async {
     try {
+      final refreshToken = await _storage.read(key: 'refresh_token');
+      if (refreshToken != null && refreshToken.isNotEmpty) {
+        try {
+          await _dio.post(
+            ApiConstants.logout,
+            data: {'refresh_token': refreshToken},
+          );
+        } catch (e, st) {
+          AppLogger.error(
+            'Backend logout failed; clearing local session anyway',
+            error: e,
+            stackTrace: st,
+            name: 'AuthRepository',
+          );
+        }
+      }
       await _storage.delete(key: 'jwt_token');
       await _storage.delete(key: 'refresh_token');
       AppLogger.info('Logout successful', name: 'AuthRepository');

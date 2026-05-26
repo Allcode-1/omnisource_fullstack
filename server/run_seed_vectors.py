@@ -171,19 +171,16 @@ def _unique_terms(terms: Iterable[str]) -> list[str]:
 
 
 def _build_seed_plan(args: argparse.Namespace) -> SeedPlan:
-    if args.demo:
-        pages = max(args.pages, 8)
-        tag_limit = max(args.tag_limit, 120)
-    else:
-        pages = args.pages
-        tag_limit = args.tag_limit
-
     current_year = 2026
     first_year = max(1900, args.year_from)
     last_year = min(current_year + 1, args.year_to)
     step = max(1, args.year_step)
     years = list(range(last_year, first_year - 1, -step))
-    return SeedPlan(pages=max(1, pages), tag_limit=tag_limit, movie_years=years)
+    return SeedPlan(
+        pages=max(1, args.pages),
+        tag_limit=max(0, args.tag_limit),
+        movie_years=years,
+    )
 
 
 def _tag_terms() -> tuple[list[str], list[str], list[str]]:

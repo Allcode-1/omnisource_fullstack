@@ -55,7 +55,7 @@ Tooling:
 
 1. Docker / Docker Compose
 2. GitHub Actions CI
-3. Ruff, Pytest, Bandit, pip-audit
+3. uv, Ruff, Pytest, Bandit, pip-audit
 
 ## Repository Layout
 
@@ -66,7 +66,8 @@ Tooling:
 │  ├─ app/                      # FastAPI application
 │  ├─ tests/                    # Backend tests
 │  ├─ Dockerfile                # Backend image
-│  ├─ requirements.txt
+│  ├─ pyproject.toml            # Backend dependencies
+│  ├─ uv.lock                   # Locked backend environment
 │  └─ .env.example
 ├─ docker-compose.yml           # API + Mongo + Redis stack
 ├─ ARCHITECTURE.md
@@ -128,14 +129,8 @@ docker compose down -v
 
 ```bash
 cd server
-python -m venv .venv
-# Windows PowerShell:
-# .venv\Scripts\Activate.ps1
-# macOS/Linux:
-# source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+uv sync
+uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 ### Flutter (web example)
@@ -178,10 +173,10 @@ models (Neural CF / Matrix Factorization / Two-Tower) with offline training.
 
 ```bash
 cd server
-python -m ruff check .
-python -m bandit -q -r app -ll
-python -m pip_audit -r requirements.txt --ignore-vuln CVE-2024-23342
-python -m pytest -q
+uv run ruff check .
+uv run bandit -q -r app -ll
+uv run pip-audit --ignore-vuln CVE-2024-23342
+uv run pytest -q
 ```
 
 ### Flutter checks
@@ -194,7 +189,7 @@ flutter test
 ### Git hooks (optional)
 
 ```bash
-pip install pre-commit
+uv tool install pre-commit
 pre-commit install
 pre-commit install --hook-type pre-push
 ```
@@ -210,7 +205,7 @@ recompute vectors:
 
 ```bash
 cd server
-python run_seed_vectors.py --content-type movie --tag-limit 40
+uv run python run_seed_vectors.py --content-type movie --tag-limit 40
 ```
 
 Useful flags:

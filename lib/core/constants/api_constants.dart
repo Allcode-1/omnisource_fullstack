@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
+
 class ApiConstants {
-  static const String baseUrl = String.fromEnvironment(
+  static const String configuredBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'http://localhost:8000',
   );
@@ -8,9 +10,28 @@ class ApiConstants {
     defaultValue: true,
   );
 
+  static String get baseUrl {
+    final configured = configuredBaseUrl.endsWith('/')
+        ? configuredBaseUrl.substring(0, configuredBaseUrl.length - 1)
+        : configuredBaseUrl;
+    final isLocalhost =
+        configured.contains('://localhost') ||
+        configured.contains('://127.0.0.1');
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
+        isLocalhost) {
+      return configured
+          .replaceFirst('://localhost', '://10.0.2.2')
+          .replaceFirst('://127.0.0.1', '://10.0.2.2');
+    }
+    return configured;
+  }
+
   // Auth
   static const String login = "/auth/login";
   static const String register = "/auth/register";
+  static const String refresh = "/auth/refresh";
+  static const String logout = "/auth/logout";
 
   static const String userMe = '/user/me';
   static const String userUpdate = '/user/update';

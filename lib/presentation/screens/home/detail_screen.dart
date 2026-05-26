@@ -10,6 +10,7 @@ import '../../../domain/repositories/analytics_repository.dart';
 import '../../../domain/repositories/content_repository.dart';
 import '../../bloc/library/library_cubit.dart';
 import '../../bloc/library/library_state.dart';
+import '../../widgets/omni_cached_image.dart';
 import '../search/search_grid_card.dart';
 
 class DetailScreen extends StatefulWidget {
@@ -312,6 +313,10 @@ class _DetailScreenState extends State<DetailScreen>
   }
 
   String _buildExplainText() {
+    final reason = content.recommendationReason?.trim();
+    if (reason != null && reason.isNotEmpty) {
+      return reason;
+    }
     final genres = content.genres.take(3).join(', ');
     final genreText = genres.isEmpty ? 'similar behavior signals' : genres;
     return 'This recommendation is based on your interest in '
@@ -666,14 +671,11 @@ class _Poster extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
-        child: imageUrl.isNotEmpty
-            ? Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _PosterFallback(item: item),
-              )
-            : _PosterFallback(item: item),
+        child: OmniCachedImage(
+          imageUrl: imageUrl,
+          fallback: _PosterFallback(item: item),
+          memCacheWidth: 720,
+        ),
       ),
     );
   }

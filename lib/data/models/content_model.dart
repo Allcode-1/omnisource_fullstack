@@ -13,6 +13,7 @@ class ContentModel extends UnifiedContent {
     super.rating,
     super.genres,
     super.releaseDate,
+    super.recommendationReason,
   });
 
   static String _asString(dynamic value, {String fallback = ''}) {
@@ -66,6 +67,10 @@ class ContentModel extends UnifiedContent {
         releaseDate: _asString(map['release_date'], fallback: '').isEmpty
             ? null
             : _asString(map['release_date']),
+        recommendationReason:
+            _asString(map['recommendation_reason'], fallback: '').isEmpty
+            ? null
+            : _asString(map['recommendation_reason']),
       );
     } catch (_) {
       return ContentModel.empty();
@@ -94,6 +99,7 @@ class ContentModel extends UnifiedContent {
       rating: entity.rating,
       genres: entity.genres,
       releaseDate: entity.releaseDate,
+      recommendationReason: entity.recommendationReason,
     );
   }
 
@@ -109,6 +115,7 @@ class ContentModel extends UnifiedContent {
       'rating': rating,
       'genres': genres,
       'release_date': releaseDate,
+      'recommendation_reason': recommendationReason,
     };
   }
 }

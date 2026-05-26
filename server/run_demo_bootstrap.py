@@ -38,12 +38,12 @@ if __name__ == "__main__":
         choices=["all", "movie", "music", "book"],
         default="all",
     )
-    parser.add_argument("--pages", type=int, default=10)
-    parser.add_argument("--tag-limit", type=int, default=140)
-    parser.add_argument("--concurrency", type=int, default=6)
+    parser.add_argument("--pages", type=int, default=4)
+    parser.add_argument("--tag-limit", type=int, default=80)
+    parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--year-from", type=int, default=1970)
     parser.add_argument("--year-to", type=int, default=2026)
-    parser.add_argument("--year-step", type=int, default=3)
+    parser.add_argument("--year-step", type=int, default=6)
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument(
         "--semantic-vectors",

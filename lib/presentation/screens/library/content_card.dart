@@ -8,6 +8,7 @@ import '../../../domain/repositories/analytics_repository.dart';
 import '../../bloc/library/library_cubit.dart';
 import '../../bloc/library/library_state.dart';
 import '../../widgets/content_quick_actions.dart';
+import '../../widgets/omni_cached_image.dart';
 import '../home/detail_screen.dart';
 
 class ContentCard extends StatelessWidget {
@@ -56,14 +57,11 @@ class ContentCard extends StatelessWidget {
                   child: Stack(
                     children: [
                       Positioned.fill(
-                        child: imageUrl.isNotEmpty
-                            ? Image.network(
-                                imageUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    _imageFallback(theme),
-                              )
-                            : _imageFallback(theme),
+                        child: OmniCachedImage(
+                          imageUrl: imageUrl,
+                          fallback: _imageFallback(theme),
+                          memCacheWidth: 420,
+                        ),
                       ),
                       Positioned.fill(
                         child: DecoratedBox(

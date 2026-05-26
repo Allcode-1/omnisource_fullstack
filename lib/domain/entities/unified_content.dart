@@ -9,6 +9,7 @@ class UnifiedContent {
   final double rating;
   final List<String> genres;
   final String? releaseDate;
+  final String? recommendationReason;
 
   UnifiedContent({
     required this.id,
@@ -21,5 +22,6 @@ class UnifiedContent {
     this.rating = 0.0,
     this.genres = const [],
     this.releaseDate,
+    this.recommendationReason,
   });
 }

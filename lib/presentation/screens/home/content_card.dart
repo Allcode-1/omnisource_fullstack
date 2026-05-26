@@ -8,6 +8,7 @@ import '../../../domain/repositories/analytics_repository.dart';
 import '../../bloc/library/library_cubit.dart';
 import '../../bloc/library/library_state.dart';
 import '../../widgets/content_quick_actions.dart';
+import '../../widgets/omni_cached_image.dart';
 import './detail_screen.dart';
 
 class ContentCard extends StatelessWidget {
@@ -157,13 +158,11 @@ class ContentCard extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
-        child: imageUrl.isNotEmpty
-            ? Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => _imageFallback(),
-              )
-            : _imageFallback(),
+        child: OmniCachedImage(
+          imageUrl: imageUrl,
+          fallback: _imageFallback(),
+          memCacheWidth: 360,
+        ),
       ),
     );
   }

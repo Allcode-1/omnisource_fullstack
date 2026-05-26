@@ -20,30 +20,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.14"]
+        python-version: ["3.12"]
     defaults:
       run:
         working-directory: server
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: server/uv.lock
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
-          cache-dependency-path: server/requirements.txt
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
-          python -m pip install ruff bandit pip-audit
+        run: uv sync --frozen
       - name: Ruff
-        run: python -m ruff check .
+        run: uv run ruff check .
       - name: Bandit (SAST)
-        run: python -m bandit -q -r app -ll
+        run: uv run bandit -q -r app -ll
       - name: pip-audit (Dependencies)
-        run: python -m pip_audit -r requirements.txt --ignore-vuln CVE-2024-23342
+        run: uv run pip-audit --ignore-vuln CVE-2024-23342
       - name: Pytest
-        run: python -m pytest -q
+        run: uv run pytest -q
 
   flutter:
     runs-on: ubuntu-latest

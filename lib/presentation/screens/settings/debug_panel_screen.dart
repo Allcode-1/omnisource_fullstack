@@ -19,6 +19,9 @@ class _DebugPanelScreenState extends State<DebugPanelScreen> {
   bool _loading = true;
   String _variant = 'hybrid_ml';
   String _health = 'unknown';
+  String _vectorMode = 'unknown';
+  String _catalog = 'unknown';
+  String _cache = 'unknown';
 
   @override
   void initState() {
@@ -31,6 +34,9 @@ class _DebugPanelScreenState extends State<DebugPanelScreen> {
     final repo = context.read<AnalyticsRepository>();
     final variant = await repo.getRankingVariant();
     var health = 'unknown';
+    var vectorMode = 'unknown';
+    var catalog = 'unknown';
+    var cache = 'unknown';
 
     try {
       final dio = Dio(
@@ -40,11 +46,22 @@ class _DebugPanelScreenState extends State<DebugPanelScreen> {
           receiveTimeout: const Duration(seconds: 5),
         ),
       );
-      final response = await dio.get('/health');
+      final response = await dio.get('/diagnostics');
       final data = response.data;
-      health = data is Map<String, dynamic>
-          ? (data['redis']?.toString() ?? 'unknown')
-          : 'unknown';
+      if (data is Map<String, dynamic>) {
+        health = data['redis']?.toString() ?? 'unknown';
+        final ml = (data['ml'] as Map?)?.cast<String, dynamic>() ?? {};
+        final catalogMap =
+            (data['catalog'] as Map?)?.cast<String, dynamic>() ?? {};
+        final cacheMap = (data['cache'] as Map?)?.cast<String, dynamic>() ?? {};
+        final indexEnabled = ml['vector_index_enabled'] == true;
+        vectorMode =
+            '${indexEnabled ? 'Vector index' : 'Mongo scan'}  -  x${ml['vector_search_multiplier'] ?? '-'}';
+        catalog =
+            '${catalogMap['vectorized_documents'] ?? 0}/${catalogMap['total_documents'] ?? 0} vectorized  -  ${(catalogMap['vector_coverage'] ?? 0).toString()}';
+        cache =
+            'tags ${cacheMap['warmup_tag_limit'] ?? '-'}  -  users ${cacheMap['warmup_user_limit'] ?? '-'}';
+      }
     } catch (_) {
       health = 'unreachable';
     }
@@ -53,6 +70,9 @@ class _DebugPanelScreenState extends State<DebugPanelScreen> {
     setState(() {
       _variant = variant;
       _health = health;
+      _vectorMode = vectorMode;
+      _catalog = catalog;
+      _cache = cache;
       _loading = false;
     });
   }
@@ -130,6 +150,12 @@ class _DebugPanelScreenState extends State<DebugPanelScreen> {
                   ),
                   const SizedBox(height: 10),
                   _InfoCard(title: 'Backend Health', value: 'Redis: $_health'),
+                  const SizedBox(height: 10),
+                  _InfoCard(title: 'ML Mode', value: _vectorMode),
+                  const SizedBox(height: 10),
+                  _InfoCard(title: 'Catalog Coverage', value: _catalog),
+                  const SizedBox(height: 10),
+                  _InfoCard(title: 'Cache Warmup', value: _cache),
                   const SizedBox(height: 10),
                   _InfoCard(title: 'API Base URL', value: ApiConstants.baseUrl),
                 ]),

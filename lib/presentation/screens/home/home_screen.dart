@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,6 +17,7 @@ import '../../bloc/library/library_cubit.dart';
 import '../../bloc/library/library_state.dart';
 import '../../widgets/app_feedback.dart';
 import '../../widgets/content_quick_actions.dart';
+import '../../widgets/omni_cached_image.dart';
 import '../../widgets/user_avatar.dart';
 import '../calendar/release_calendar_screen.dart';
 import '../collections/collections_screen.dart';
@@ -36,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _text = AppTheme.ink;
   static const _horizontalPadding = 20.0;
   static const _tabHorizontalPadding = 40.0;
+  String _lastPrecacheSignature = '';
 
   @override
   void initState() {
@@ -61,6 +64,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ...forYouItems.map(_contentKey),
             },
           );
+          _precacheVisibleImages(context, [
+            ?hero,
+            ...forYouItems.take(8),
+            ...trendingItems.take(8),
+          ]);
 
           return RefreshIndicator(
             backgroundColor: AppTheme.surface,
@@ -125,6 +133,26 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
     );
+  }
+
+  void _precacheVisibleImages(
+    BuildContext context,
+    List<UnifiedContent> items,
+  ) {
+    final urls = items
+        .map((item) => item.imageUrl?.trim() ?? '')
+        .where((url) => url.isNotEmpty)
+        .take(18)
+        .toList(growable: false);
+    final signature = urls.join('|');
+    if (signature.isEmpty || signature == _lastPrecacheSignature) return;
+    _lastPrecacheSignature = signature;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final url in urls) {
+        precacheImage(CachedNetworkImageProvider(url), context);
+      }
+    });
   }
 
   Widget _buildHeader(BuildContext context) {
@@ -423,11 +451,9 @@ class _HeroRecommendation extends StatelessWidget {
                     bottom: 8,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(22),
-                      child: Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, error, stackTrace) =>
-                            const SizedBox.shrink(),
+                      child: OmniCachedImage(
+                        imageUrl: imageUrl,
+                        fallback: const SizedBox.shrink(),
                       ),
                     ),
                   ),
@@ -455,7 +481,7 @@ class _HeroRecommendation extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        _heroEyebrow(category),
+                        _heroReason(content) ?? _heroEyebrow(category),
                         style: TextStyle(
                           color: AppTheme.ink.withValues(alpha: 0.76),
                           fontSize: 13,
@@ -527,6 +553,12 @@ class _HeroRecommendation extends StatelessWidget {
     if (item.rating > 0) parts.add(item.rating.toStringAsFixed(1));
     if (item.genres.isNotEmpty) parts.add(item.genres.take(2).join(', '));
     return parts.join('  ');
+  }
+
+  static String? _heroReason(UnifiedContent? item) {
+    final reason = item?.recommendationReason?.trim();
+    if (reason == null || reason.isEmpty) return null;
+    return reason;
   }
 }
 
@@ -606,15 +638,11 @@ class _HomeContentTile extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (imageUrl.isNotEmpty)
-                      Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, error, stackTrace) =>
-                            _TileFallback(type: item.type),
-                      )
-                    else
-                      _TileFallback(type: item.type),
+                    OmniCachedImage(
+                      imageUrl: imageUrl,
+                      fallback: _TileFallback(type: item.type),
+                      memCacheWidth: 360,
+                    ),
                     Positioned.fill(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
@@ -942,6 +970,10 @@ void _trackOpen(BuildContext context, UnifiedContent item, String source) {
 }
 
 String _tileMeta(UnifiedContent item, bool showType) {
+  final reason = item.recommendationReason?.trim();
+  if (!showType && reason != null && reason.isNotEmpty) {
+    return reason;
+  }
   final parts = <String>[];
   if (showType) parts.add(_typeLabel(item.type));
   if ((item.subtitle ?? '').trim().isNotEmpty) {
