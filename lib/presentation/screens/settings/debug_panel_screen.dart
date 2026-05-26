@@ -55,8 +55,9 @@ class _DebugPanelScreenState extends State<DebugPanelScreen> {
             (data['catalog'] as Map?)?.cast<String, dynamic>() ?? {};
         final cacheMap = (data['cache'] as Map?)?.cast<String, dynamic>() ?? {};
         final indexEnabled = ml['vector_index_enabled'] == true;
+        final backend = ml['vector_backend'] ?? 'hash';
         vectorMode =
-            '${indexEnabled ? 'Vector index' : 'Mongo scan'}  -  x${ml['vector_search_multiplier'] ?? '-'}';
+            '${indexEnabled ? 'Vector index' : 'Mongo scan'}  -  $backend  -  x${ml['vector_search_multiplier'] ?? '-'}';
         catalog =
             '${catalogMap['vectorized_documents'] ?? 0}/${catalogMap['total_documents'] ?? 0} vectorized  -  ${(catalogMap['vector_coverage'] ?? 0).toString()}';
         cache =

@@ -68,7 +68,7 @@ async def _reset_demo_users() -> None:
 
 
 async def _upsert_user(index: int, interests: list[str]) -> User:
-    email = f"demo+{index:02d}@omnisource.local"
+    email = f"demo+{index:02d}@example.com"
     username = f"demo_user_{index:02d}"
     user = await User.find_one(User.email == email)
     if user is None:

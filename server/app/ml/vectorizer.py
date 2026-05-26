@@ -5,18 +5,25 @@ from typing import List, Optional
 
 import numpy as np
 
+from app.core.config import settings
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
 
 class ContentVectorizer:
     HASH_DIM = 128
     HASH_MODEL_NAME = "hash:blake2b-128"
 
-    def __init__(self, model_name: str = 'paraphrase-multilingual-MiniLM-L12-v2'):
+    def __init__(
+        self,
+        model_name: str = "paraphrase-multilingual-MiniLM-L12-v2",
+        backend: str | None = None,
+    ):
         self.model_name = model_name
         self.device = "cpu"
         self.model = None
+        self._force_hash = (backend or settings.ML_VECTOR_BACKEND).lower() != "semantic"
         self._load_failed = False
         self._load_lock = threading.Lock()
 
@@ -30,6 +37,8 @@ class ContentVectorizer:
         return text.strip()
 
     def _load_model(self) -> None:
+        if self._force_hash:
+            return
         if self.model is not None or self._load_failed:
             return
         with self._load_lock:
@@ -51,11 +60,16 @@ class ContentVectorizer:
 
     def use_hash_fallback(self) -> None:
         self.model = None
+        self._force_hash = True
         self._load_failed = True
+
+    def use_semantic_model(self) -> None:
+        self._force_hash = False
+        self._load_failed = False
 
     @property
     def active_model_name(self) -> str:
-        if self.model is None and self._load_failed:
+        if self._force_hash or (self.model is None and self._load_failed):
             return self.HASH_MODEL_NAME
         if self.model is None:
             return f"{self.model_name}:pending"

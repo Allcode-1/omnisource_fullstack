@@ -199,7 +199,10 @@ class RecommenderEngine:
             return []
 
         profile_vector = np.mean(compatible_vectors, axis=0).tolist()
-        candidates_filter: dict[str, object] = {"features_vector.0": {"$exists": True}}
+        candidates_filter: dict[str, object] = {
+            "features_vector.0": {"$exists": True},
+            "vector_dim": target_dim,
+        }
         if content_type and content_type != "all":
             candidates_filter["type"] = content_type
         candidate_limit = self._candidate_limit(limit)
@@ -444,6 +447,7 @@ class RecommenderEngine:
         # Exclude already seen content and skip docs without vectors.
         candidates_filter: dict[str, object] = {
             "features_vector.0": {"$exists": True},
+            "vector_dim": target_dim,
         }
         if not supports_content_key:
             excluded_ext_ids = [
@@ -598,7 +602,10 @@ class RecommenderEngine:
             return await _return_discovery("empty_tag_vector")
         tag_dim = len(tag_vector)
 
-        query_filter: dict[str, object] = {"features_vector.0": {"$exists": True}}
+        query_filter: dict[str, object] = {
+            "features_vector.0": {"$exists": True},
+            "vector_dim": tag_dim,
+        }
         if content_type and content_type != "all":
             query_filter["type"] = content_type
         candidates = (

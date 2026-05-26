@@ -49,7 +49,7 @@ Backend:
 1. FastAPI
 2. Beanie + MongoDB
 3. Redis
-4. SentenceTransformers + NumPy for vector-based recommendation logic
+4. Fast hash vectors by default, optional SentenceTransformers + NumPy for richer semantic vectors
 
 Tooling:
 
@@ -159,10 +159,20 @@ Most important groups:
 
 Current implementation is a practical semi-ML pipeline:
 
-1. Content vectors are generated via SentenceTransformers (with hash fallback)
+1. Content vectors are generated via fast hash embeddings, with optional SentenceTransformers mode
 2. User interactions are tracked with weighted events
 3. Recommendations use vector similarity + rating blending
 4. Deep Research mode applies vector retrieval with fallback to discovery APIs
+
+For local demos the default vector backend is `hash`, because it is fast,
+stable and keeps all vectors at the same dimension. To switch to
+SentenceTransformers, set `ML_VECTOR_BACKEND=semantic` and refresh vectors:
+
+```bash
+cd server
+uv sync --extra semantic
+uv run python run_seed_vectors.py --vectors-only --refresh-all --semantic-vectors
+```
 
 This is suitable for MVP+/diploma scope and can be evolved to fully trained
 models (Neural CF / Matrix Factorization / Two-Tower) with offline training.

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     ML_VECTOR_INDEX_ENABLED: bool = False
     ML_VECTOR_INDEX_TTL_SECONDS: int = 600
     ML_VECTOR_INDEX_MAX_ITEMS: int = 0
+    ML_VECTOR_BACKEND: str = "hash"
     ML_VECTOR_SEARCH_MULTIPLIER: int = 120
     ML_EVAL_HOLDOUT_MIN_POSITIVES: int = 2
     ML_EVENT_WEIGHT_VIEW: float = 0.2

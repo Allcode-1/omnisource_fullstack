@@ -451,13 +451,20 @@ async def _seed_music(
     return persisted
 
 
-def _build_query_filter(content_type: str, refresh_all: bool) -> dict[str, object]:
+def _build_query_filter(
+    content_type: str,
+    refresh_all: bool,
+    target_dim: int,
+    target_model: str,
+) -> dict[str, object]:
     query_filter: dict[str, object] = {}
     if not refresh_all:
         query_filter["$or"] = [
             {"features_vector.0": {"$exists": False}},
             {"vector_dim": {"$in": [None, 0]}},
             {"vector_model": {"$in": [None, ""]}},
+            {"vector_dim": {"$ne": target_dim}},
+            {"vector_model": {"$ne": target_model}},
         ]
     if content_type != "all":
         query_filter["type"] = content_type
@@ -472,9 +479,13 @@ async def _backfill_vectors(
     semantic_vectors: bool,
 ) -> tuple[int, int]:
     vectorizer = get_vectorizer()
-    if not semantic_vectors:
+    if semantic_vectors:
+        vectorizer.use_semantic_model()
+    else:
         vectorizer.use_hash_fallback()
-    await asyncio.to_thread(vectorizer.get_embedding, "vectorizer warmup")
+    warmup_vector = await asyncio.to_thread(vectorizer.get_embedding, "vectorizer warmup")
+    target_dim = len(warmup_vector)
+    target_model = getattr(vectorizer, "active_model_name", "unknown")
 
     updated = 0
     scanned = 0
@@ -484,7 +495,12 @@ async def _backfill_vectors(
         if max_docs > 0 and scanned >= max_docs:
             break
 
-        query_filter = _build_query_filter(content_type, refresh_all)
+        query_filter = _build_query_filter(
+            content_type,
+            refresh_all,
+            target_dim,
+            target_model,
+        )
         if last_id is not None:
             query_filter["_id"] = {"$gt": last_id}
 

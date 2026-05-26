@@ -88,6 +88,16 @@ def configure_logging() -> None:
                     "handlers": ["console"],
                     "propagate": False,
                 },
+                "httpx": {
+                    "level": "WARNING",
+                    "handlers": ["console"],
+                    "propagate": False,
+                },
+                "httpcore": {
+                    "level": "WARNING",
+                    "handlers": ["console"],
+                    "propagate": False,
+                },
             },
         }
     )

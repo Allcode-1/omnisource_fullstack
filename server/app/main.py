@@ -191,6 +191,7 @@ async def health_check():
         "ml": {
             "vector_index_enabled": settings.ML_VECTOR_INDEX_ENABLED,
             "vector_index_max_items": settings.ML_VECTOR_INDEX_MAX_ITEMS,
+            "vector_backend": settings.ML_VECTOR_BACKEND,
         },
     }
 
@@ -208,6 +209,7 @@ async def diagnostics():
             "vector_index_enabled": settings.ML_VECTOR_INDEX_ENABLED,
             "vector_index_ttl_seconds": settings.ML_VECTOR_INDEX_TTL_SECONDS,
             "vector_index_max_items": settings.ML_VECTOR_INDEX_MAX_ITEMS,
+            "vector_backend": settings.ML_VECTOR_BACKEND,
             "vector_search_multiplier": settings.ML_VECTOR_SEARCH_MULTIPLIER,
             "event_weights": {
                 "view": settings.ML_EVENT_WEIGHT_VIEW,
