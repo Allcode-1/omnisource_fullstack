@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart'; // Добавлено для kIsWeb
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Добавлено для Web
 import '../../core/constants/api_constants.dart';
 import '../../core/utils/app_logger.dart';
 import '../../domain/entities/user.dart';
@@ -11,6 +13,36 @@ class AuthRepositoryImpl implements AuthRepository {
   final _storage = const FlutterSecureStorage();
 
   AuthRepositoryImpl(this._dio);
+
+  // Вспомогательный метод для записи токенов
+  Future<void> _writeToken(String key, String value) async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(key, value);
+    } else {
+      await _storage.write(key: key, value: value);
+    }
+  }
+
+  // Вспомогательный метод для чтения токенов
+  Future<String?> _readToken(String key) async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(key);
+    } else {
+      return await _storage.read(key: key);
+    }
+  }
+
+  // Вспомогательный метод для удаления токенов
+  Future<void> _deleteToken(String key) async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(key);
+    } else {
+      await _storage.delete(key: key);
+    }
+  }
 
   @override
   Future<User> login(String email, String password) async {
@@ -30,11 +62,14 @@ class AuthRepositoryImpl implements AuthRepository {
         throw Exception('Token is missing in login response');
       }
 
-      await _storage.write(key: 'jwt_token', value: token);
+      // Используем безопасный метод записи
+      await _writeToken('jwt_token', token);
+
       final refreshToken = response.data['refresh_token']?.toString();
       if (refreshToken != null && refreshToken.isNotEmpty) {
-        await _storage.write(key: 'refresh_token', value: refreshToken);
+        await _writeToken('refresh_token', refreshToken);
       }
+
       AppLogger.info('Login successful for $email', name: 'AuthRepository');
       return UserModel.fromJson(response.data['user']);
     } catch (e, st) {
@@ -59,13 +94,15 @@ class AuthRepositoryImpl implements AuthRepository {
         '/auth/register',
         data: {'email': email, 'password': password, 'username': username},
       );
+
       final token = response.data['access_token']?.toString();
       if (token != null && token.isNotEmpty) {
-        await _storage.write(key: 'jwt_token', value: token);
+        await _writeToken('jwt_token', token);
       }
+
       final refreshToken = response.data['refresh_token']?.toString();
       if (refreshToken != null && refreshToken.isNotEmpty) {
-        await _storage.write(key: 'refresh_token', value: refreshToken);
+        await _writeToken('refresh_token', refreshToken);
       }
 
       AppLogger.info('Register successful for $email', name: 'AuthRepository');
@@ -84,7 +121,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> completeOnboarding(List<String> tags) async {
     try {
-      final token = await _storage.read(key: 'jwt_token');
+      final token = await _readToken('jwt_token');
 
       await _dio.post(
         '/user/complete-onboarding',
@@ -109,7 +146,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<User?> getCurrentUser() async {
     try {
-      final token = await _storage.read(key: 'jwt_token');
+      final token = await _readToken('jwt_token');
       if (token == null) return null;
       final response = await _dio.get(
         '/user/me',
@@ -205,7 +242,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> logout() async {
     try {
-      final refreshToken = await _storage.read(key: 'refresh_token');
+      final refreshToken = await _readToken('refresh_token');
       if (refreshToken != null && refreshToken.isNotEmpty) {
         try {
           await _dio.post(
@@ -221,8 +258,8 @@ class AuthRepositoryImpl implements AuthRepository {
           );
         }
       }
-      await _storage.delete(key: 'jwt_token');
-      await _storage.delete(key: 'refresh_token');
+      await _deleteToken('jwt_token');
+      await _deleteToken('refresh_token');
       AppLogger.info('Logout successful', name: 'AuthRepository');
     } catch (e, st) {
       AppLogger.error(
@@ -238,7 +275,7 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<bool> checkAuth() async {
     try {
-      final token = await _storage.read(key: 'jwt_token');
+      final token = await _readToken('jwt_token');
       return token != null;
     } catch (e, st) {
       AppLogger.error(

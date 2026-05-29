@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 class ApiConstants {
   static const String configuredBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://5.42.108.117',
+    defaultValue: 'http://5.42.108.117/api',
   );
   static const bool useImageProxy = bool.fromEnvironment(
     'USE_IMAGE_PROXY',
