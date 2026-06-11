@@ -32,6 +32,17 @@ def _make_item(ext_id: str, type_value: str, rating: float) -> UnifiedContent:
     )
 
 
+def test_first_youtube_video_id_extracts_common_payload_shapes() -> None:
+    assert (
+        ContentService._first_youtube_video_id('{"videoId":"4NRXx6U8ABQ"}')
+        == "4NRXx6U8ABQ"
+    )
+    assert (
+        ContentService._first_youtube_video_id("/watch?v=dQw4w9WgXcQ")
+        == "dQw4w9WgXcQ"
+    )
+
+
 @pytest.mark.asyncio
 async def test_get_unified_search_returns_cached_results(monkeypatch) -> None:
     service = ContentService()

@@ -863,7 +863,42 @@ class ContentService:
                 timeout=httpx.Timeout(6.0, connect=2.0, read=6.0),
                 follow_redirects=True,
             ) as client:
-                response = await client.get(
+                innertube_response = await client.post(
+                    "https://www.youtube.com/youtubei/v1/search?prettyPrint=false",
+                    json={
+                        "context": {
+                            "client": {
+                                "clientName": "WEB",
+                                "clientVersion": "2.20240606.01.00",
+                                "hl": "en",
+                                "gl": "US",
+                            }
+                        },
+                        "query": normalized,
+                    },
+                    headers={
+                        "Content-Type": "application/json",
+                        "Origin": "https://www.youtube.com",
+                        "Referer": "https://www.youtube.com/",
+                        "User-Agent": (
+                            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+                            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 "
+                            "Mobile/15E148 Safari/604.1"
+                        ),
+                    },
+                )
+                if innertube_response.status_code == 200:
+                    video_id = self._first_youtube_video_id(innertube_response.text)
+                    if video_id:
+                        return video_id
+                else:
+                    logger.info(
+                        "YouTube innertube lookup returned status=%s query=%s",
+                        innertube_response.status_code,
+                        normalized,
+                    )
+
+                html_response = await client.get(
                     "https://www.youtube.com/results",
                     params={"search_query": normalized},
                     headers={
@@ -882,20 +917,31 @@ class ContentService:
             )
             return None
 
-        if response.status_code != 200:
+        if html_response.status_code != 200:
             logger.info(
                 "YouTube preview lookup returned status=%s query=%s",
-                response.status_code,
+                html_response.status_code,
                 normalized,
             )
             return None
 
+        return self._first_youtube_video_id(html_response.text)
+
+    @staticmethod
+    def _first_youtube_video_id(payload: str) -> str | None:
         seen: set[str] = set()
-        for video_id in re.findall(r'"videoId":"([A-Za-z0-9_-]{11})"', response.text):
-            if video_id in seen:
-                continue
-            seen.add(video_id)
-            return video_id
+        patterns = (
+            r'"videoId"\s*:\s*"([A-Za-z0-9_-]{11})"',
+            r"watch\?v=([A-Za-z0-9_-]{11})",
+            r"youtu\.be/([A-Za-z0-9_-]{11})",
+            r"/embed/([A-Za-z0-9_-]{11})",
+        )
+        for pattern in patterns:
+            for video_id in re.findall(pattern, payload):
+                if video_id in seen:
+                    continue
+                seen.add(video_id)
+                return video_id
         return None
 
     async def _get_book_preview(
