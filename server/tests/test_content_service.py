@@ -317,7 +317,7 @@ async def test_get_preview_uses_spotify_audio_url(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_preview_uses_youtube_video_when_spotify_audio_missing(monkeypatch) -> None:
+async def test_get_preview_uses_audio_fallback_when_spotify_audio_missing(monkeypatch) -> None:
     service = ContentService()
 
     async def fake_track(track_id: str):
@@ -329,20 +329,27 @@ async def test_get_preview_uses_youtube_video_when_spotify_audio_missing(monkeyp
             "external_urls": {"spotify": "https://open.spotify.com/track/track-1"},
         }
 
-    async def fake_youtube_lookup(query: str):
+    async def fake_audio_lookup(query: str, title: str | None, artist: str | None):
         assert query == "Artist Song"
-        return "abc123DEF45"
+        assert title == "Song"
+        assert artist == "Artist"
+        return {
+            "provider": "Apple Music",
+            "title": "Song",
+            "url": "https://audio.test/apple-preview.m4a",
+            "external_url": "https://music.apple.com/song/song",
+        }
 
     monkeypatch.setattr(service.spotify, "get_track", fake_track)
-    monkeypatch.setattr(service, "_find_youtube_video_id", fake_youtube_lookup)
+    monkeypatch.setattr(service, "_find_music_audio_preview", fake_audio_lookup)
 
     preview = await service.get_preview("music", "track-1", title="Song")
 
     assert preview is not None
-    assert preview.provider == "YouTube"
-    assert preview.preview_type == "video"
-    assert preview.url == "https://www.youtube.com/watch?v=abc123DEF45"
-    assert preview.embed_url == "https://www.youtube.com/embed/abc123DEF45"
+    assert preview.provider == "Apple Music"
+    assert preview.preview_type == "audio"
+    assert preview.url == "https://audio.test/apple-preview.m4a"
+    assert preview.embed_url is None
     assert preview.external_url == "https://open.spotify.com/track/track-1"
     assert preview.is_playable is True
 

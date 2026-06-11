@@ -800,28 +800,30 @@ class ContentService:
                     is_playable=True,
                 )
             query_text = f"{artist_text} {track_title}".strip()
-            youtube_id = await self._find_youtube_video_id(query_text)
-            if youtube_id:
+            audio_preview = await self._find_music_audio_preview(
+                query=query_text,
+                title=track_title,
+                artist=artist_text,
+            )
+            if audio_preview:
                 return ContentPreview(
                     content_type="music",
                     external_id=external_id,
-                    provider="YouTube",
-                    preview_type="video",
-                    title=track_title,
-                    url=f"https://www.youtube.com/watch?v={youtube_id}",
-                    embed_url=f"https://www.youtube.com/embed/{youtube_id}",
-                    external_url=external_url,
+                    provider=audio_preview["provider"],
+                    preview_type="audio",
+                    title=audio_preview["title"] or track_title,
+                    url=audio_preview["url"],
+                    external_url=external_url or audio_preview.get("external_url"),
                     is_playable=True,
                 )
-            query = quote_plus(query_text)
-            if query:
+            if external_url:
                 return ContentPreview(
                     content_type="music",
                     external_id=external_id,
-                    provider="YouTube",
+                    provider="Spotify",
                     preview_type="external",
                     title=track_title,
-                    url=f"https://www.youtube.com/results?search_query={query}",
+                    url=external_url,
                     external_url=external_url,
                     is_playable=False,
                 )
@@ -829,28 +831,176 @@ class ContentService:
         query_text = " ".join(part for part in [subtitle, title] if part)
         if not query_text:
             return None
-        youtube_id = await self._find_youtube_video_id(query_text)
-        if youtube_id:
+        audio_preview = await self._find_music_audio_preview(
+            query=query_text,
+            title=title,
+            artist=subtitle,
+        )
+        if audio_preview:
             return ContentPreview(
                 content_type="music",
                 external_id=external_id,
-                provider="YouTube",
-                preview_type="video",
-                title=title or "Music preview",
-                url=f"https://www.youtube.com/watch?v={youtube_id}",
-                embed_url=f"https://www.youtube.com/embed/{youtube_id}",
+                provider=audio_preview["provider"],
+                preview_type="audio",
+                title=audio_preview["title"] or title or "Music preview",
+                url=audio_preview["url"],
+                external_url=audio_preview.get("external_url"),
                 is_playable=True,
             )
-        query = quote_plus(query_text)
-        return ContentPreview(
-            content_type="music",
-            external_id=external_id,
-            provider="YouTube",
-            preview_type="external",
-            title=title or "Music preview",
-            url=f"https://www.youtube.com/results?search_query={query}",
-            is_playable=False,
+        return None
+
+    async def _find_music_audio_preview(
+        self,
+        query: str,
+        title: str | None,
+        artist: str | None,
+    ) -> dict[str, str] | None:
+        normalized = " ".join(query.split()).strip()
+        if not normalized:
+            return None
+
+        try:
+            async with httpx.AsyncClient(
+                proxy=settings.SPOTIFY_PROXY_URL,
+                timeout=httpx.Timeout(6.0, connect=2.0, read=6.0),
+                follow_redirects=True,
+            ) as client:
+                apple = await self._lookup_itunes_preview(
+                    client,
+                    normalized,
+                    title,
+                    artist,
+                )
+                if apple:
+                    return apple
+
+                deezer = await self._lookup_deezer_preview(
+                    client,
+                    normalized,
+                    title,
+                    artist,
+                )
+                if deezer:
+                    return deezer
+        except Exception as exc:
+            logger.info(
+                "Music audio preview lookup failed query=%s error=%s",
+                normalized,
+                type(exc).__name__,
+            )
+        return None
+
+    async def _lookup_itunes_preview(
+        self,
+        client: httpx.AsyncClient,
+        query: str,
+        title: str | None,
+        artist: str | None,
+    ) -> dict[str, str] | None:
+        response = await client.get(
+            "https://itunes.apple.com/search",
+            params={
+                "term": query,
+                "media": "music",
+                "entity": "song",
+                "limit": 10,
+                "country": "US",
+            },
         )
+        if response.status_code != 200:
+            return None
+        data = response.json()
+        results = data.get("results") if isinstance(data, dict) else None
+        if not isinstance(results, list):
+            return None
+
+        candidates: list[tuple[int, dict]] = []
+        for item in results:
+            if not isinstance(item, dict):
+                continue
+            preview_url = str(item.get("previewUrl") or "").strip()
+            if not preview_url:
+                continue
+            candidates.append((self._music_preview_score(item, title, artist), item))
+
+        if not candidates:
+            return None
+
+        _, best = sorted(candidates, key=lambda item: item[0], reverse=True)[0]
+        return {
+            "provider": "Apple Music",
+            "title": str(best.get("trackName") or title or "Music preview"),
+            "url": str(best["previewUrl"]),
+            "external_url": str(best.get("trackViewUrl") or ""),
+        }
+
+    async def _lookup_deezer_preview(
+        self,
+        client: httpx.AsyncClient,
+        query: str,
+        title: str | None,
+        artist: str | None,
+    ) -> dict[str, str] | None:
+        response = await client.get(
+            "https://api.deezer.com/search/track",
+            params={"q": query, "limit": 10},
+        )
+        if response.status_code != 200:
+            return None
+        data = response.json()
+        results = data.get("data") if isinstance(data, dict) else None
+        if not isinstance(results, list):
+            return None
+
+        candidates: list[tuple[int, dict]] = []
+        for item in results:
+            if not isinstance(item, dict):
+                continue
+            preview_url = str(item.get("preview") or "").strip()
+            if not preview_url:
+                continue
+            candidates.append((self._music_preview_score(item, title, artist), item))
+
+        if not candidates:
+            return None
+
+        _, best = sorted(candidates, key=lambda item: item[0], reverse=True)[0]
+        return {
+            "provider": "Deezer",
+            "title": str(best.get("title") or title or "Music preview"),
+            "url": str(best["preview"]),
+            "external_url": str(best.get("link") or ""),
+        }
+
+    def _music_preview_score(
+        self,
+        item: dict,
+        title: str | None,
+        artist: str | None,
+    ) -> int:
+        item_title = str(item.get("trackName") or item.get("title") or "")
+        item_artist_raw = item.get("artistName") or item.get("artist") or ""
+        item_artist = (
+            str(item_artist_raw.get("name") or "")
+            if isinstance(item_artist_raw, dict)
+            else str(item_artist_raw)
+        )
+        normalized_title = self._normalized_text(title)
+        normalized_artist = self._normalized_text(artist)
+        normalized_item_title = self._normalized_text(item_title)
+        normalized_item_artist = self._normalized_text(item_artist)
+        score = 0
+        if normalized_title and normalized_title == normalized_item_title:
+            score += 6
+        elif normalized_title and normalized_title in normalized_item_title:
+            score += 3
+        if normalized_artist and normalized_artist in normalized_item_artist:
+            score += 4
+        return score
+
+    @staticmethod
+    def _normalized_text(value: str | None) -> str:
+        return re.sub(r"[^a-z0-9]+", " ", (value or "").lower()).strip()
 
     async def _find_youtube_video_id(self, query: str) -> str | None:
         normalized = " ".join(query.split()).strip()
