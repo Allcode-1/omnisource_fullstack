@@ -92,8 +92,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _buildTopBar(),
               const SizedBox(height: 28),
               _buildAccountCard(),
-              const SizedBox(height: 28),
-              _buildSetupBlock(),
               if (_user!.interests.isNotEmpty) ...[
                 const SizedBox(height: 28),
                 _buildInterestsBlock(),
@@ -177,7 +175,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Row(
         children: [
-          UserAvatar(username: _user!.username, size: 58),
+          UserAvatar(
+            username: _user!.username,
+            size: 58,
+            onTap: _showEditProfileSheet,
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
@@ -209,24 +211,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSetupBlock() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SoftButton(label: 'Set up Profile', onTap: _showEditProfileSheet),
-        const SizedBox(height: 14),
-        Text(
-          'Set up your profile to keep recommendations personal and make your library feel like yours.',
-          style: TextStyle(
-            color: AppTheme.ink.withValues(alpha: 0.58),
-            fontSize: 15,
-            height: 1.35,
-          ),
-        ),
-      ],
     );
   }
 
@@ -578,38 +562,6 @@ class _CircleButton extends StatelessWidget {
           border: Border.all(color: AppTheme.ink.withValues(alpha: 0.08)),
         ),
         child: Icon(icon, color: AppTheme.ink, size: 29),
-      ),
-    );
-  }
-}
-
-class _SoftButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-
-  const _SoftButton({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        height: 58,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 22),
-        decoration: BoxDecoration(
-          color: AppTheme.surfaceAlt,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: AppTheme.primary,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
       ),
     );
   }

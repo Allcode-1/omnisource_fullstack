@@ -40,12 +40,29 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _text = AppTheme.ink;
   static const _horizontalPadding = 20.0;
   static const _tabHorizontalPadding = 40.0;
+  final ScrollController _scrollController = ScrollController();
   String _lastPrecacheSignature = '';
+  double _appBarOpacity = 1.0;
 
   @override
   void initState() {
     super.initState();
     context.read<LibraryCubit>().loadLibraryData(showLoader: false);
+    _scrollController.addListener(() {
+      final newOpacity = (1.0 - (_scrollController.offset / 80)).clamp(
+        0.0,
+        1.0,
+      );
+      if (newOpacity != _appBarOpacity) {
+        setState(() => _appBarOpacity = newOpacity);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -72,65 +89,90 @@ class _HomeScreenState extends State<HomeScreen> {
             ...trendingItems.take(8),
           ]);
 
-          return RefreshIndicator(
-            backgroundColor: AppTheme.surface,
-            color: _text,
-            onRefresh: () => context.read<HomeCubit>().loadContent(),
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics(),
-              ),
-              slivers: [
-                SliverToBoxAdapter(child: _buildHeader(context)),
-                SliverToBoxAdapter(child: _buildCategoryTabs(context, state)),
-                if (state.isLoading &&
-                    state.recommendations.isEmpty &&
-                    state.trending.isEmpty)
-                  const OmniHomeSkeletonSliver()
-                else if ((state.error ?? '').isNotEmpty &&
-                    state.recommendations.isEmpty &&
-                    state.trending.isEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: OmniErrorState(
-                      message: state.error ?? 'Failed to load content',
-                      onRetry: () => context.read<HomeCubit>().loadContent(),
-                    ),
-                  )
-                else
-                  SliverList(
-                    delegate: SliverChildListDelegate([
-                      const SizedBox(height: 22),
-                      _HeroRecommendation(item: hero, category: state.category),
-                      const SizedBox(height: 20),
-                      _ReleaseCalendarCard(
-                        onTap: () =>
-                            _push(context, const ReleaseCalendarScreen()),
-                      ),
-                      const SizedBox(height: 26),
-                      _ContentRail(
-                        title: _forYouTitle(state.category),
-                        items: forYouItems,
-                        showType: state.category == ContentCategory.all,
-                        onSeeAll: () => _push(context, const ForYouHubScreen()),
-                      ),
-                      _ContentRail(
-                        title: 'Trending now',
-                        items: trendingItems,
-                        showType: state.category == ContentCategory.all,
-                        onSeeAll: () =>
-                            _push(context, const TrendingHubScreen()),
-                      ),
-                      _CollectionsRail(
-                        onSeeAll: () =>
-                            _push(context, const CollectionsScreen()),
-                      ),
-                      ..._extraSections(state),
-                      const SizedBox(height: 104),
-                    ]),
+          return Stack(
+            children: [
+              RefreshIndicator(
+                backgroundColor: AppTheme.surface,
+                color: _text,
+                onRefresh: () => context.read<HomeCubit>().loadContent(),
+                child: CustomScrollView(
+                  controller: _scrollController,
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
                   ),
-              ],
-            ),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: SizedBox(
+                        height: MediaQuery.paddingOf(context).top + 76,
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _buildCategoryTabs(context, state),
+                    ),
+                    if (state.isLoading &&
+                        state.recommendations.isEmpty &&
+                        state.trending.isEmpty)
+                      const OmniHomeSkeletonSliver()
+                    else if ((state.error ?? '').isNotEmpty &&
+                        state.recommendations.isEmpty &&
+                        state.trending.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: OmniErrorState(
+                          message: state.error ?? 'Failed to load content',
+                          onRetry: () =>
+                              context.read<HomeCubit>().loadContent(),
+                        ),
+                      )
+                    else
+                      SliverList(
+                        delegate: SliverChildListDelegate([
+                          const SizedBox(height: 22),
+                          _HeroRecommendation(
+                            item: hero,
+                            category: state.category,
+                          ),
+                          const SizedBox(height: 20),
+                          _ReleaseCalendarCard(
+                            onTap: () =>
+                                _push(context, const ReleaseCalendarScreen()),
+                          ),
+                          const SizedBox(height: 26),
+                          _ContentRail(
+                            title: _forYouTitle(state.category),
+                            items: forYouItems,
+                            showType: state.category == ContentCategory.all,
+                            onSeeAll: () =>
+                                _push(context, const ForYouHubScreen()),
+                          ),
+                          _ContentRail(
+                            title: 'Trending now',
+                            items: trendingItems,
+                            showType: state.category == ContentCategory.all,
+                            onSeeAll: () =>
+                                _push(context, const TrendingHubScreen()),
+                          ),
+                          _CollectionsRail(
+                            onSeeAll: () =>
+                                _push(context, const CollectionsScreen()),
+                          ),
+                          ..._extraSections(state),
+                          const SizedBox(height: 104),
+                        ]),
+                      ),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Opacity(
+                  opacity: _appBarOpacity,
+                  child: _buildHeader(context),
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -158,44 +200,56 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
-        child: BlocBuilder<AuthCubit, AuthState>(
-          builder: (context, authState) {
-            final username = authState is AuthAuthenticated
-                ? authState.user.username
-                : 'User';
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppTheme.appBackground.withValues(alpha: 0.96),
+            Colors.transparent,
+          ],
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+          child: BlocBuilder<AuthCubit, AuthState>(
+            builder: (context, authState) {
+              final username = authState is AuthAuthenticated
+                  ? authState.user.username
+                  : 'User';
 
-            return Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Home',
-                    textAlign: TextAlign.left,
-                    style: TextStyle(
-                      color: _text,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                      height: 1.12,
+              return Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Home',
+                      textAlign: TextAlign.left,
+                      style: TextStyle(
+                        color: _text,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        height: 1.12,
+                      ),
                     ),
                   ),
-                ),
-                UserAvatar(
-                  username: username,
-                  size: 42,
-                  onTap: () {
-                    final userRepository = context.read<UserRepository>();
-                    _push(
-                      context,
-                      ProfileScreen(userRepository: userRepository),
-                    );
-                  },
-                ),
-              ],
-            );
-          },
+                  UserAvatar(
+                    username: username,
+                    size: 42,
+                    onTap: () {
+                      final userRepository = context.read<UserRepository>();
+                      _push(
+                        context,
+                        ProfileScreen(userRepository: userRepository),
+                      );
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -788,22 +842,22 @@ class _CollectionsRail extends StatelessWidget {
       _CollectionPreview(
         title: 'Cyber Mood',
         subtitle: 'Cyberpunk, noir',
-        colors: [Color(0xFF2DD4BF), Color(0xFF2563EB)],
+        icon: CupertinoIcons.moon_stars_fill,
       ),
       _CollectionPreview(
         title: 'Late Night',
         subtitle: 'Chill, dark',
-        colors: [Color(0xFF1D4ED8), Color(0xFF06B6D4)],
+        icon: CupertinoIcons.music_note_2,
       ),
       _CollectionPreview(
         title: 'Mind Benders',
         subtitle: 'Mystery, surreal',
-        colors: [Color(0xFF0F766E), Color(0xFFEAB308)],
+        icon: CupertinoIcons.sparkles,
       ),
       _CollectionPreview(
         title: 'Epic Worlds',
         subtitle: 'Fantasy, epic',
-        colors: [Color(0xFF22C55E), Color(0xFF84CC16)],
+        icon: CupertinoIcons.book_fill,
       ),
     ];
 
@@ -824,7 +878,16 @@ class _CollectionsRail extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               itemBuilder: (context, index) {
                 final item = collections[index];
-                return _CollectionCard(item: item, onTap: onSeeAll);
+                return _CollectionCard(
+                  item: item,
+                  onTap: () => Navigator.push(
+                    context,
+                    CupertinoPageRoute(
+                      builder: (_) =>
+                          CollectionsScreen(initialCollectionTitle: item.title),
+                    ),
+                  ),
+                );
               },
               separatorBuilder: (context, index) => const SizedBox(width: 14),
               itemCount: collections.length,
@@ -848,59 +911,52 @@ class _CollectionCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: 184,
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: item.colors,
-          ),
+          color: AppTheme.surfaceAlt,
+          borderRadius: BorderRadius.circular(18),
         ),
-        child: Stack(
+        child: Row(
           children: [
-            Positioned(
-              right: -16,
-              top: -16,
-              child: Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: AppTheme.ink.withValues(alpha: 0.16),
-                  shape: BoxShape.circle,
-                ),
+            Container(
+              width: 42,
+              height: 42,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: AppTheme.ink.withValues(alpha: 0.06)),
               ),
+              child: Icon(item.icon, color: AppTheme.primary, size: 21),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  CupertinoIcons.square_stack_3d_up_fill,
-                  color: AppTheme.ink,
-                  size: 18,
-                ),
-                const Spacer(),
-                Text(
-                  item.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.ink,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppTheme.ink,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  item.subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppTheme.ink.withValues(alpha: 0.72),
-                    fontSize: 12,
+                  const SizedBox(height: 5),
+                  Text(
+                    item.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppTheme.ink.withValues(alpha: 0.54),
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -956,12 +1012,12 @@ class _SectionHeader extends StatelessWidget {
 class _CollectionPreview {
   final String title;
   final String subtitle;
-  final List<Color> colors;
+  final IconData icon;
 
   const _CollectionPreview({
     required this.title,
     required this.subtitle,
-    required this.colors,
+    required this.icon,
   });
 }
 

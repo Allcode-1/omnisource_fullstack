@@ -290,6 +290,7 @@ async def test_get_preview_uses_google_books_reader_url(monkeypatch) -> None:
         return {
             "volumeInfo": {
                 "title": "Book",
+                "previewLink": "https://books.google.com/book-preview",
                 "infoLink": "https://books.google.com/book-info",
             },
             "accessInfo": {
@@ -304,7 +305,7 @@ async def test_get_preview_uses_google_books_reader_url(monkeypatch) -> None:
     assert preview is not None
     assert preview.provider == "Google Books"
     assert preview.preview_type == "external"
-    assert preview.url == "https://books.google.com/book-reader"
+    assert preview.url == "https://books.google.com/book-preview"
     assert preview.external_url == "https://books.google.com/book-info"
 
 

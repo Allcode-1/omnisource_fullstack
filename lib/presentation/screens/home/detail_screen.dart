@@ -530,13 +530,13 @@ class _DetailScreenState extends State<DetailScreen>
                         label: _previewOpenLabel(preview),
                         onTap: () => _openUrl(preview.url),
                       ),
-                    if ((preview.externalUrl ?? '').isNotEmpty) ...[
+                    if (_shouldShowExternalButton(preview)) ...[
                       const SizedBox(height: 10),
                       _PreviewButton(
                         icon: CupertinoIcons.arrow_up_right,
                         label: _externalOpenLabel(preview),
                         secondary: true,
-                        onTap: () => _openUrl(preview.externalUrl!),
+                        onTap: () => _openUrl(preview.externalUrl!.trim()),
                       ),
                     ],
                   ],
@@ -703,14 +703,41 @@ class _DetailScreenState extends State<DetailScreen>
   String _previewOpenLabel(ContentPreview preview) {
     if (preview.contentType == 'movie') return 'Open Trailer';
     if (preview.contentType == 'book') return 'Open Book Preview';
+    if (preview.provider == 'YouTube') return 'Search on YouTube';
     return 'Open Preview';
   }
 
   String _externalOpenLabel(ContentPreview preview) {
-    if (preview.provider == 'Spotify') return 'Open on Spotify';
-    if (preview.provider == 'Google Books') return 'Open in Google Books';
-    if (preview.provider == 'YouTube') return 'Open on YouTube';
+    final host = Uri.tryParse(preview.externalUrl ?? '')?.host.toLowerCase();
+    if (host != null && host.contains('spotify')) return 'Open on Spotify';
+    if (host != null && host.contains('books.google')) {
+      return 'Open in Google Books';
+    }
+    if (host != null && host.contains('youtube')) return 'Open on YouTube';
     return 'Open Source';
+  }
+
+  bool _shouldShowExternalButton(ContentPreview preview) {
+    final externalUrl = preview.externalUrl?.trim();
+    if (externalUrl == null || externalUrl.isEmpty) return false;
+    if (_sameUrl(preview.url, externalUrl)) return false;
+
+    final previewHost = Uri.tryParse(preview.url)?.host.toLowerCase() ?? '';
+    final externalHost = Uri.tryParse(externalUrl)?.host.toLowerCase() ?? '';
+    if (preview.contentType == 'music' &&
+        preview.previewType == 'external' &&
+        previewHost.contains('youtube') &&
+        externalHost.contains('youtube')) {
+      return false;
+    }
+    return true;
+  }
+
+  bool _sameUrl(String a, String b) {
+    final first = Uri.tryParse(a.trim());
+    final second = Uri.tryParse(b.trim());
+    if (first == null || second == null) return a.trim() == b.trim();
+    return first.removeFragment() == second.removeFragment();
   }
 
   Widget _buildTabs() {

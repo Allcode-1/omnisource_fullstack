@@ -817,9 +817,9 @@ class ContentService:
         info = data.get("volumeInfo") if isinstance(data.get("volumeInfo"), dict) else {}
         access = data.get("accessInfo") if isinstance(data.get("accessInfo"), dict) else {}
         url = (
-            access.get("webReaderLink")
-            or info.get("previewLink")
+            info.get("previewLink")
             or info.get("infoLink")
+            or access.get("webReaderLink")
         )
         if not url:
             return None
